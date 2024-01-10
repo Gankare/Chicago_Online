@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using Firebase.Database;
+using Google.MiniJSON;
 
 [Serializable]
 public class DataToSave
@@ -19,6 +20,10 @@ public class DataSaver : MonoBehaviour
     public void Awake()
     {
         dbRef = FirebaseDatabase.DefaultInstance.RootReference;
+        LoadData();
+        if (userId == null || userId == "")
+        {
+        }
     }
     public void SaveData()
     {
@@ -27,6 +32,23 @@ public class DataSaver : MonoBehaviour
     }
     public void LoadData()
     {
+        StartCoroutine(LoadDataEnum());
+    }
+    IEnumerator LoadDataEnum()
+    {
+        var serverData = dbRef.Child("users").Child(userId).GetValueAsync();
+        yield return new WaitUntil(predicate: () => serverData.IsCompleted);
+        Debug.Log("load complete");
 
+        DataSnapshot snapshot = serverData.Result;
+        string jsonData = snapshot.GetRawJsonValue();
+
+        if(jsonData != null)
+        {
+            Debug.Log("Server data found");
+            dts = JsonUtility.FromJson<DataToSave>(jsonData);   
+        }
+        else
+            Debug.Log("No data found");
     }
 }
