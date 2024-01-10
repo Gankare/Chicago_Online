@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1057299496318",
+    "firebase_url": "https://chicago-online-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "chicago-online",
+    "storage_bucket": "chicago-online.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1057299496318:android:cc5d469f53558a6bba472f",
+        "android_client_info": {
+          "package_name": "com.chicago.firebase"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCDj0jCE3j8m79PFh4OnqN_UzztEt7d_Ec"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
