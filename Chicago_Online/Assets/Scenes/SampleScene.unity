@@ -1557,7 +1557,7 @@ MonoBehaviour:
   usernameRegisterField: {fileID: 814075855}
   emailRegisterField: {fileID: 147885092}
   passwordRegisterField: {fileID: 45198799}
-  PasswordRegisterVerifyField: {fileID: 432010750}
+  passwordRegisterVerifyField: {fileID: 432010750}
   warningRegisterText: {fileID: 997815030}
 --- !u!1 &510172147
 GameObject:
