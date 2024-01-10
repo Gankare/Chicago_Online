@@ -105,6 +105,7 @@ public class AuthManager : MonoBehaviour
             Debug.LogFormat("User signed in successfully: {0} ({1})", user.DisplayName, user.Email);
             warningLoginText.text = "";
             confirmLoginText.text = "Logged In";
+            SceneHandler.instance.LoadServerScene();
         }
     }
     #endregion
@@ -188,7 +189,7 @@ public class AuthManager : MonoBehaviour
                     {
                         //Username is now set
                         //Now return to login screen
-                        SceneManager.instance.LoginScreen();
+                        SceneHandler.instance.LoginScreen();
                         warningRegisterText.text = "";
                     }
                 }

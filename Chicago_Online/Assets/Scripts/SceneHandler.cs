@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class SceneManager : MonoBehaviour
+public class SceneHandler : MonoBehaviour
 {
     #region Singleton
-    public static SceneManager instance;
+    public static SceneHandler instance;
 
     private void Awake()
     {
@@ -27,5 +27,9 @@ public class SceneManager : MonoBehaviour
     {
         registerMenu.SetActive(true);
         loginMenu.SetActive(false); 
+    }
+    public void LoadServerScene()
+    {
+        SceneManager.LoadScene("ServerScene");
     }
 }
