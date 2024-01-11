@@ -117,7 +117,9 @@ public class AuthManager : MonoBehaviour
             confirmLoginText.text = "Logged In";
 
             DataSaver.instance.userId = user.Email;
-            DataSaver.instance.LoadData(); 
+            DataSaver.instance.LoadData();
+
+            yield return new WaitForSeconds(2);
             SceneHandler.instance.LoadServerScene();
         }
     }
