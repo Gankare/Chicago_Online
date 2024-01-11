@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using Firebase.Database;
-using Google.MiniJSON;
 
 [Serializable]
 public class DataToSave
@@ -13,25 +12,31 @@ public class DataToSave
 }
 public class DataSaver : MonoBehaviour
 {
+    #region Singleton
+    public static DataSaver instance;
+
+    private void Awake()
+    {
+        DontDestroyOnLoad(transform.gameObject);
+        if (instance == null) instance = this;
+        else Destroy(this);
+    }
+    #endregion
 
     public DataToSave dts; //Data to save
     public string userId;
     DatabaseReference dbRef; //Data base refrence
 
-    public void Awake()
+    public void Start()
     {
         dbRef = FirebaseDatabase.DefaultInstance.RootReference;
-        userId = AuthManager.instance.user.Email;
-        Debug.Log(userId);
-        LoadData();
-        InputDataAfterLogin.instance.ShowPlayerProfile();
-        //if (userId == null || userId == "")
+        Debug.Log(dbRef.ToString());    
     }
     public void SaveData()
     {
-        dts.userName = AuthManager.instance.user.DisplayName;
         string json = JsonUtility.ToJson(dts);
         dbRef.Child("users").Child(userId).SetRawJsonValueAsync(json);
+        Debug.Log("Saved data");
     }
     public void LoadData()
     {
@@ -51,7 +56,9 @@ public class DataSaver : MonoBehaviour
             Debug.Log("Server data found");
             dts = JsonUtility.FromJson<DataToSave>(jsonData);   
         }
-        else
+        else //First time logging in
+        {
             Debug.Log("No data found");
+        }
     }
 }

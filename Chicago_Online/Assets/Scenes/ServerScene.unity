@@ -278,7 +278,6 @@ GameObject:
   m_Component:
   - component: {fileID: 724206396}
   - component: {fileID: 724206395}
-  - component: {fileID: 724206397}
   m_Layer: 0
   m_Name: Scriptholder
   m_TagString: Untagged
@@ -300,7 +299,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   profileName: {fileID: 1118888832}
   profileWins: {fileID: 1415665157}
-  dataSaver: {fileID: 724206397}
+  dataSaver: {fileID: 0}
 --- !u!4 &724206396
 Transform:
   m_ObjectHideFlags: 0
@@ -316,22 +315,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &724206397
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 724206394}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 652c70c4f9a577345bca2e51a8e06c10, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  dts:
-    userName: 
-    matchesWon: 0
-  userId: 
 --- !u!1 &913671865
 GameObject:
   m_ObjectHideFlags: 0

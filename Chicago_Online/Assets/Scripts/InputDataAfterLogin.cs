@@ -18,11 +18,16 @@ public class InputDataAfterLogin : MonoBehaviour
 
     public TMP_Text profileName;
     public TMP_Text profileWins;
-    public DataSaver dataSaver;
 
+    private void Start()
+    {
+        DataSaver.instance.LoadData();
+        ShowPlayerProfile();
+    }
     public void ShowPlayerProfile()
     {
-        profileName.text = dataSaver.dts.userName;
-        profileWins.text = "Wins: " + dataSaver.dts.matchesWon;
+        profileName.text = DataSaver.instance.dts.userName;
+        //profileName.text = AuthManager.instance.user.DisplayName;
+        profileWins.text = "Wins: " + DataSaver.instance.dts.matchesWon;
     }
 }

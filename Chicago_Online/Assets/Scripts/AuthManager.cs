@@ -115,6 +115,9 @@ public class AuthManager : MonoBehaviour
             Debug.LogFormat("User signed in successfully: {0} ({1})", user.DisplayName, user.Email);
             warningLoginText.text = "";
             confirmLoginText.text = "Logged In";
+
+            DataSaver.instance.userId = user.Email;
+            DataSaver.instance.LoadData(); 
             SceneHandler.instance.LoadServerScene();
         }
     }
@@ -199,6 +202,10 @@ public class AuthManager : MonoBehaviour
                     {
                         //Username is now set
                         //Now return to login screen
+                        DataSaver.instance.userId = user.Email;
+                        DataSaver.instance.dts.userName = user.DisplayName;
+                        DataSaver.instance.dts.matchesWon = 0;
+                        DataSaver.instance.SaveData();
                         SceneHandler.instance.LoginScreen();
                         warningRegisterText.text = "";
                     }
