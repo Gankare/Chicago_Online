@@ -8,6 +8,16 @@ using System.Threading.Tasks;
 
 public class AuthManager : MonoBehaviour
 {
+    #region Singleton
+    public static AuthManager instance;
+
+    private void Awake()
+    {
+        if (instance == null) instance = this;
+        else Destroy(this);
+    }
+    #endregion
+
     //Firebase variables
     [Header("Firebase")]
     public DependencyStatus dependencyStatus;
@@ -29,7 +39,7 @@ public class AuthManager : MonoBehaviour
     public TMP_InputField passwordRegisterVerifyField;
     public TMP_Text warningRegisterText;
 
-    void Awake()
+    void Start()
     {
         //Check that all of the necessary dependencies for Firebase are present on the system
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWith(task =>

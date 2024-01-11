@@ -13,6 +13,7 @@ public class DataToSave
 }
 public class DataSaver : MonoBehaviour
 {
+
     public DataToSave dts; //Data to save
     public string userId;
     DatabaseReference dbRef; //Data base refrence
@@ -20,13 +21,15 @@ public class DataSaver : MonoBehaviour
     public void Awake()
     {
         dbRef = FirebaseDatabase.DefaultInstance.RootReference;
+        userId = AuthManager.instance.user.Email;
+        Debug.Log(userId);
         LoadData();
-        if (userId == null || userId == "")
-        {
-        }
+        InputDataAfterLogin.instance.ShowPlayerProfile();
+        //if (userId == null || userId == "")
     }
     public void SaveData()
     {
+        dts.userName = AuthManager.instance.user.DisplayName;
         string json = JsonUtility.ToJson(dts);
         dbRef.Child("users").Child(userId).SetRawJsonValueAsync(json);
     }
