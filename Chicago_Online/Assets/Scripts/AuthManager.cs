@@ -116,7 +116,7 @@ public class AuthManager : MonoBehaviour
             warningLoginText.text = "";
             confirmLoginText.text = "Logged In";
 
-            DataSaver.instance.userId = user.Email;
+            DataSaver.instance.userId = user.UserId;
             DataSaver.instance.LoadData();
 
             yield return new WaitForSeconds(2);
@@ -204,7 +204,7 @@ public class AuthManager : MonoBehaviour
                     {
                         //Username is now set
                         //Now return to login screen
-                        DataSaver.instance.userId = user.Email;
+                        DataSaver.instance.userId = user.UserId;
                         DataSaver.instance.dts.userName = user.DisplayName;
                         DataSaver.instance.dts.matchesWon = 0;
                         DataSaver.instance.SaveData();
