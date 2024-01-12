@@ -25,7 +25,7 @@ public class DataSaver : MonoBehaviour
 
     public DataToSave dts; //Data to save
     public string userId;
-    DatabaseReference dbRef; //Data base refrence
+    public DatabaseReference dbRef; //Data base refrence
 
     public void Start()
     {
@@ -56,7 +56,7 @@ public class DataSaver : MonoBehaviour
             Debug.Log("Server data found");
             dts = JsonUtility.FromJson<DataToSave>(jsonData);   
         }
-        else //First time logging in
+        else
         {
             Debug.Log("No data found");
         }
