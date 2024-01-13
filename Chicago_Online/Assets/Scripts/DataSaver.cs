@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using Firebase.Database;
+using Firebase;
+using Firebase.Extensions;
 
 [Serializable]
 public class DataToSave
 {
-    public string userName;
     public int matchesWon;
+    public string userName;
 }
 public class DataSaver : MonoBehaviour
 {
@@ -27,11 +29,13 @@ public class DataSaver : MonoBehaviour
     public string userId;
     public DatabaseReference dbRef; //Data base refrence
 
+    public bool nameExists = false;
+
     public void Start()
     {
         dbRef = FirebaseDatabase.DefaultInstance.RootReference;
-        Debug.Log(dbRef.ToString());    
     }
+    
     public void SaveData()
     {
         string json = JsonUtility.ToJson(dts);

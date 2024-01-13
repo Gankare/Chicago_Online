@@ -5,6 +5,10 @@ using Firebase;
 using Firebase.Auth;
 using TMPro;
 using System.Threading.Tasks;
+using Firebase.Database;
+using Firebase.Extensions;
+using Google.MiniJSON;
+using Unity.VisualScripting;
 
 public class AuthManager : MonoBehaviour
 {
@@ -59,7 +63,6 @@ public class AuthManager : MonoBehaviour
 
     private void InitializeFirebase()
     {
-        Debug.Log("Setting up Firebase Auth");
         //Set the authentication instance object
         auth = FirebaseAuth.DefaultInstance;
     }
@@ -134,86 +137,123 @@ public class AuthManager : MonoBehaviour
     }
     private IEnumerator Register(string _email, string _password, string _username)
     {
-        if (_username == "")
-        {
-            //If the username field is blank show a warning
-            warningRegisterText.text = "Missing Username";
-        }
-        else if (passwordRegisterField.text != passwordRegisterVerifyField.text)
-        {
-            //If the password does not match show a warning
-            warningRegisterText.text = "Password Does Not Match!";
-        }
-        else
-        {
-            //Call the Firebase auth signin function passing the email and password
-            Task<AuthResult> RegisterTask = auth.CreateUserWithEmailAndPasswordAsync(_email, _password);
-            //Wait until the task completes
-            yield return new WaitUntil(predicate: () => RegisterTask.IsCompleted);
+        bool isUsernameAvailable = false;
+        // Check username availability
+        Task<bool> checkUsernameTask = CheckUsernameAvailability(_username);
+        yield return new WaitUntil(() => checkUsernameTask.IsCompleted);
 
-            if (RegisterTask.Exception != null)
+        isUsernameAvailable = checkUsernameTask.Result;
+
+        // Continue with the registration process if the username is available
+        if (isUsernameAvailable)
+        {
+            Debug.Log("Username avalible");
+            if (_username == "")
             {
-                //If there are errors handle them
-                Debug.LogWarning(message: $"Failed to register task with {RegisterTask.Exception}");
-                FirebaseException firebaseEx = RegisterTask.Exception.GetBaseException() as FirebaseException;
-                AuthError errorCode = (AuthError)firebaseEx.ErrorCode;
-
-                string message = "Register Failed!";
-                switch (errorCode)
-                {
-                    case AuthError.MissingEmail:
-                        message = "Missing Email";
-                        break;
-                    case AuthError.MissingPassword:
-                        message = "Missing Password";
-                        break;
-                    case AuthError.WeakPassword:
-                        message = "Weak Password";
-                        break;
-                    case AuthError.EmailAlreadyInUse:
-                        message = "Email Already In Use";
-                        break;
-                }
-                warningRegisterText.text = message;
+                //If the username field is blank show a warning
+                warningRegisterText.text = "Missing Username";
+            }
+            else if (passwordRegisterField.text != passwordRegisterVerifyField.text)
+            {
+                //If the password does not match show a warning
+                warningRegisterText.text = "Password Does Not Match!";
             }
             else
             {
-                //User has now been created
-                //Now get the result
-                user = RegisterTask.Result.User;
+                //Call the Firebase auth signin function passing the email and password
+                Task<AuthResult> RegisterTask = auth.CreateUserWithEmailAndPasswordAsync(_email, _password);
+                //Wait until the task completes
+                yield return new WaitUntil(predicate: () => RegisterTask.IsCompleted);
 
-                if (user != null)
+                if (RegisterTask.Exception != null)
                 {
-                    //Create a user profile and set the username
-                    UserProfile profile = new UserProfile { DisplayName = _username };
+                    //If there are errors handle them
+                    Debug.LogWarning(message: $"Failed to register task with {RegisterTask.Exception}");
+                    FirebaseException firebaseEx = RegisterTask.Exception.GetBaseException() as FirebaseException;
+                    AuthError errorCode = (AuthError)firebaseEx.ErrorCode;
 
-                    //Call the Firebase auth update user profile function passing the profile with the username
-                    Task ProfileTask = user.UpdateUserProfileAsync(profile);
-                    //Wait until the task completes
-                    yield return new WaitUntil(predicate: () => ProfileTask.IsCompleted);
-
-                    if (ProfileTask.Exception != null)
+                    string message = "Register Failed!";
+                    switch (errorCode)
                     {
-                        //If there are errors handle them
-                        Debug.LogWarning(message: $"Failed to register task with {ProfileTask.Exception}");
-                        FirebaseException firebaseEx = ProfileTask.Exception.GetBaseException() as FirebaseException;
-                        AuthError errorCode = (AuthError)firebaseEx.ErrorCode;
-                        warningRegisterText.text = "Username Set Failed!";
+                        case AuthError.MissingEmail:
+                            message = "Missing Email";
+                            break;
+                        case AuthError.MissingPassword:
+                            message = "Missing Password";
+                            break;
+                        case AuthError.WeakPassword:
+                            message = "Weak Password";
+                            break;
+                        case AuthError.EmailAlreadyInUse:
+                            message = "Email Already In Use";
+                            break;
                     }
-                    else
+                    warningRegisterText.text = message;
+                }
+                else
+                {
+                    //User has now been created
+                    //Now get the result
+                    user = RegisterTask.Result.User;
+
+                    if (user != null)
                     {
-                        //Username is now set
-                        //Now return to login screen
-                        DataSaver.instance.userId = user.UserId;
-                        DataSaver.instance.dts.userName = user.DisplayName;
-                        DataSaver.instance.dts.matchesWon = 0;
-                        DataSaver.instance.SaveData();
-                        SceneHandler.instance.LoginScreen();
-                        warningRegisterText.text = "";
+                        //Create a user profile and set the username
+                        UserProfile profile = new UserProfile { DisplayName = _username };
+
+                        //Call the Firebase auth update user profile function passing the profile with the username
+                        Task ProfileTask = user.UpdateUserProfileAsync(profile);
+                        //Wait until the task completes
+                        yield return new WaitUntil(predicate: () => ProfileTask.IsCompleted);
+
+                        if (ProfileTask.Exception != null)
+                        {
+                            //If there are errors handle them
+                            Debug.LogWarning(message: $"Failed to register task with {ProfileTask.Exception}");
+                            FirebaseException firebaseEx = ProfileTask.Exception.GetBaseException() as FirebaseException;
+                            AuthError errorCode = (AuthError)firebaseEx.ErrorCode;
+                            warningRegisterText.text = "Username Set Failed!";
+                        }
+                        else
+                        {
+                            //Username is now set
+                            //Now return to login screen
+                            DataSaver.instance.userId = user.UserId;
+                            DataSaver.instance.dts.userName = user.DisplayName;
+                            DataSaver.instance.dts.matchesWon = 0;
+                            DataSaver.instance.SaveData();
+                            SceneHandler.instance.LoginScreen();
+                            warningRegisterText.text = "";
+                        }
                     }
                 }
             }
         }
+        else
+        {
+            Debug.Log("Username is not avalible");
+            warningRegisterText.text = "Username is taken";
+        }
+
+    }
+    private async Task<bool> CheckUsernameAvailability(string username)
+    {
+        DataSnapshot snapshot = await DataSaver.instance.dbRef.Child("users").GetValueAsync();
+
+        if (snapshot.Exists)
+        {
+            foreach (var userSnapshot in snapshot.Children)
+            {
+                // Check if the "userName" field exists and matches the provided username
+                if (userSnapshot.Child("userName").Value.ToString() == username)
+                {
+                    // Username exists
+                    return false;
+                }
+            }
+        }
+        // Username is available
+        return true;
     }
     #endregion
 }
