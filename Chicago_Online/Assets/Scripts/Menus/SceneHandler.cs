@@ -34,6 +34,6 @@ public class SceneHandler : MonoBehaviour
     }
     public void ReturnToMenu()
     {
-        SceneManager.LoadScene("MenuScene");
+        SceneManager.LoadSceneAsync("MenuScene");
     }
 }
