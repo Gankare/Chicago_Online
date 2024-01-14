@@ -32,4 +32,8 @@ public class SceneHandler : MonoBehaviour
     {
         SceneManager.LoadScene("ServerScene");
     }
+    public void ReturnToMenu()
+    {
+        SceneManager.LoadScene("MenuScene");
+    }
 }

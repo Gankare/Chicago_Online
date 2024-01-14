@@ -7,8 +7,6 @@ using TMPro;
 using System.Threading.Tasks;
 using Firebase.Database;
 using Firebase.Extensions;
-using Google.MiniJSON;
-using Unity.VisualScripting;
 
 public class AuthManager : MonoBehaviour
 {
@@ -147,7 +145,6 @@ public class AuthManager : MonoBehaviour
         // Continue with the registration process if the username is available
         if (isUsernameAvailable)
         {
-            Debug.Log("Username avalible");
             if (_username == "")
             {
                 //If the username field is blank show a warning
@@ -231,7 +228,6 @@ public class AuthManager : MonoBehaviour
         }
         else
         {
-            Debug.Log("Username is not avalible");
             warningRegisterText.text = "Username is taken";
         }
 

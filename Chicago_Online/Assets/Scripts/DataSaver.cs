@@ -11,6 +11,8 @@ public class DataToSave
 {
     public int matchesWon;
     public string userName;
+    public List<String> friends;
+    public List<String> friendRequests;
 }
 public class DataSaver : MonoBehaviour
 {
@@ -49,20 +51,48 @@ public class DataSaver : MonoBehaviour
     IEnumerator LoadDataEnum()
     {
         var serverData = dbRef.Child("users").Child(userId).GetValueAsync();
-        yield return new WaitUntil(predicate: () => serverData.IsCompleted);
-        Debug.Log("load complete");
+        yield return new WaitUntil(() => serverData.IsCompleted);
 
         DataSnapshot snapshot = serverData.Result;
         string jsonData = snapshot.GetRawJsonValue();
 
-        if(jsonData != null)
+        if (jsonData != null)
         {
             Debug.Log("Server data found");
-            dts = JsonUtility.FromJson<DataToSave>(jsonData);   
+            dts = JsonUtility.FromJson<DataToSave>(jsonData);
+
+            // Load friend requests
+            yield return StartCoroutine(LoadFriendRequests());
         }
         else
         {
             Debug.Log("No data found");
+        }
+    }
+
+    IEnumerator LoadFriendRequests()
+    {
+        var friendRequestsData = dbRef.Child("friendRequests").Child(userId).GetValueAsync();
+        yield return new WaitUntil(() => friendRequestsData.IsCompleted);
+
+        DataSnapshot friendRequestsSnapshot = friendRequestsData.Result;
+
+        if (friendRequestsSnapshot.Exists)
+        {
+            // Clear the existing friend requests
+            dts.friendRequests.Clear();
+
+            foreach (var requestSnapshot in friendRequestsSnapshot.Children)
+            {
+                string friendId = requestSnapshot.Key;
+                dts.friendRequests.Add(friendId);
+            }
+
+            Debug.Log("Friend requests loaded");
+        }
+        else
+        {
+            Debug.Log("No friend requests found");
         }
     }
 }

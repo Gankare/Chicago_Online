@@ -18,6 +18,8 @@ public class InputDataAfterLogin : MonoBehaviour
 
     public TMP_Text profileName;
     public TMP_Text profileWins;
+    public GameObject friendRequestObject;
+    public Transform friendRequestList;
 
     private void Start()
     {
@@ -27,7 +29,11 @@ public class InputDataAfterLogin : MonoBehaviour
     public void ShowPlayerProfile()
     {
         profileName.text = DataSaver.instance.dts.userName;
-        //profileName.text = AuthManager.instance.user.DisplayName;
         profileWins.text = "Wins: " + DataSaver.instance.dts.matchesWon;
+        foreach (string friend in DataSaver.instance.dts.friendRequests)
+        {
+            var request = Instantiate(friendRequestObject, friendRequestList);
+            request.GetComponent<Text>().text = friend;
+        }
     }
 }
