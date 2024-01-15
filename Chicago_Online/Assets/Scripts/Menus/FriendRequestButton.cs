@@ -3,12 +3,14 @@ using Firebase.Database;
 using Firebase.Extensions;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class FriendRequestButton : MonoBehaviour
 {
     DatabaseReference databaseReference;
     public string friendId;
+    public TMP_Text friendName;
     void Start()
     {
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
@@ -17,7 +19,7 @@ public class FriendRequestButton : MonoBehaviour
             databaseReference = FirebaseDatabase.DefaultInstance.RootReference;
         });
     }
-    private void Accept()
+    public void Accept()
     {
         AcceptFriendRequest(DataSaver.instance.userId, friendId);
     }
@@ -33,7 +35,7 @@ public class FriendRequestButton : MonoBehaviour
         Destroy(this.gameObject);
     }
 
-    private void Decline()
+    public void Decline()
     {
         DeclineFriendRequest(DataSaver.instance.userId, friendId);
     }

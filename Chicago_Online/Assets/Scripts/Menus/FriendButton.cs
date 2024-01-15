@@ -3,12 +3,14 @@ using Firebase.Database;
 using Firebase.Extensions;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class FriendButton : MonoBehaviour
 {
     DatabaseReference databaseReference;
     public string friendId;
+    public TMP_Text friendName;
     void Start()
     {
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>

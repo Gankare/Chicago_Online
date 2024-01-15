@@ -131,7 +131,7 @@ public class AuthManager : MonoBehaviour
     public void RegisterButton()
     {
         //Call the register coroutine passing the email, password, and username
-        StartCoroutine(Register(emailRegisterField.text, passwordRegisterField.text, usernameRegisterField.text));
+        StartCoroutine(Register(emailRegisterField.text, passwordRegisterField.text, usernameRegisterField.text.ToLower()));
     }
     private IEnumerator Register(string _email, string _password, string _username)
     {
@@ -226,11 +226,6 @@ public class AuthManager : MonoBehaviour
                 }
             }
         }
-        else
-        {
-            warningRegisterText.text = "Username is taken";
-        }
-
     }
     private async Task<bool> CheckUsernameAvailability(string username)
     {
@@ -243,6 +238,7 @@ public class AuthManager : MonoBehaviour
                 // Check if the "userName" field exists and matches the provided username
                 if (userSnapshot.Child("userName").Value.ToString() == username)
                 {
+                    warningRegisterText.text = "Username is taken";
                     // Username exists
                     return false;
                 }

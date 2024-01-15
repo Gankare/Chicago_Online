@@ -881,9 +881,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dts:
-    userName: Null
     matchesWon: 1337
+    userName: Null
+    friends: []
+    friendRequests: []
   userId: Null
+  nameExists: 0
 --- !u!1 &308484853
 GameObject:
   m_ObjectHideFlags: 0
@@ -2473,7 +2476,7 @@ MonoBehaviour:
   m_enableAutoSizing: 1
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 8
   m_HorizontalAlignment: 1
   m_VerticalAlignment: 512
   m_textAlignment: 65535

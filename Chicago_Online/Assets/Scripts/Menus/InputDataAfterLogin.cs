@@ -61,7 +61,7 @@ public class InputDataAfterLogin : MonoBehaviour
             // Display the friend request with the username
             var request = Instantiate(friendRequestObject, friendRequestList);
             request.GetComponent<FriendRequestButton>().friendId = friendId;
-            request.GetComponentInChildren<Text>().text = friendUsername;
+            request.GetComponentInChildren<FriendRequestButton>().friendName.text = friendUsername;
         }
         else
         {
@@ -83,7 +83,7 @@ public class InputDataAfterLogin : MonoBehaviour
             // Display the friend with the username
             var friend = Instantiate(friendObject, parent);
             friend.GetComponent<FriendButton>().friendId = friendId;
-            friend.GetComponentInChildren<Text>().text = friendUsername;
+            friend.GetComponentInChildren<FriendButton>().friendName.text = friendUsername;
         }
         else
         {

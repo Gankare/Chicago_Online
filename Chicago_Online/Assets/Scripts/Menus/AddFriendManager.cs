@@ -24,7 +24,7 @@ public class AddFriendManager : MonoBehaviour
 
     public void AddFriend()
     {
-        StartCoroutine(SendFriendRequest(DataSaver.instance.userId, inputField_FriendName.text));
+        StartCoroutine(SendFriendRequest(DataSaver.instance.userId, inputField_FriendName.text.ToLower()));
     }
 
     public IEnumerator SendFriendRequest(string senderId, string receiverUsername)
@@ -39,9 +39,14 @@ public class AddFriendManager : MonoBehaviour
         if (!string.IsNullOrEmpty(receiverId))
         {
             Debug.Log("Friend Exists");
+
+
+            //Check error thing if user already sent request or if they are allready friends then give warning and return else continue below
+
             // Save friend request in the database
             databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).SetValueAsync(true);
             DataSaver.instance.LoadData();
+            warningText.text = "";
         }
         else
         {
