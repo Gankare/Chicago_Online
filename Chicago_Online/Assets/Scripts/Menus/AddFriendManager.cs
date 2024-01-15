@@ -7,7 +7,7 @@ using Firebase.Database;
 using Firebase.Extensions;
 using TMPro;
 
-public class FriendManager : MonoBehaviour
+public class AddFriendManager : MonoBehaviour
 {
     DatabaseReference databaseReference;
     public TMP_InputField inputField_FriendName;
@@ -27,6 +27,27 @@ public class FriendManager : MonoBehaviour
         StartCoroutine(SendFriendRequest(DataSaver.instance.userId, inputField_FriendName.text));
     }
 
+    public IEnumerator SendFriendRequest(string senderId, string receiverUsername)
+    {
+        // Check username availability
+        Task<string> getUserIdTask = GetUserIdByUsername(receiverUsername);
+        yield return new WaitUntil(() => getUserIdTask.IsCompleted);
+
+        string receiverId = getUserIdTask.Result;
+
+        // Continue with the registration process if the userId is available
+        if (!string.IsNullOrEmpty(receiverId))
+        {
+            Debug.Log("Friend Exists");
+            // Save friend request in the database
+            databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).SetValueAsync(true);
+            DataSaver.instance.LoadData();
+        }
+        else
+        {
+            warningText.text = "User does not exist";
+        }
+    }
     private async Task<string> GetUserIdByUsername(string username)
     {
         DataSnapshot snapshot = await DataSaver.instance.dbRef.Child("users").GetValueAsync();
@@ -44,33 +65,5 @@ public class FriendManager : MonoBehaviour
         }
         // Username does not exist
         return null;
-    }
-
-    public IEnumerator SendFriendRequest(string senderId, string receiverUsername)
-    {
-        // Check username availability
-        Task<string> getUserIdTask = GetUserIdByUsername(receiverUsername);
-        yield return new WaitUntil(() => getUserIdTask.IsCompleted);
-
-        string receiverId = getUserIdTask.Result;
-
-        // Continue with the registration process if the userId is available
-        if (!string.IsNullOrEmpty(receiverId))
-        {
-            Debug.Log("Friend Exists");
-            // Save friend request in the database
-            databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).SetValueAsync(true);
-            DataSaver.instance.SaveData();
-        }
-        else
-        {
-            warningText.text = "User does not exist";
-        }
-    }
-    public void RemoveFriend(string userId, string friendId)
-    {
-        // Remove friends from each other's friend list
-        databaseReference.Child("users").Child(userId).Child("friends").Child(friendId).RemoveValueAsync();
-        databaseReference.Child("users").Child(friendId).Child("friends").Child(userId).RemoveValueAsync();
     }
 }

@@ -5,7 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class FriendRequestManager : MonoBehaviour
+public class FriendRequestButton : MonoBehaviour
 {
     DatabaseReference databaseReference;
     public string friendId;
@@ -19,22 +19,7 @@ public class FriendRequestManager : MonoBehaviour
     }
     private void Accept()
     {
-        List<string> friendRequests = DataSaver.instance.dts.friendRequests;
-
-        if (friendRequests.Count > 0)
-        {
-            // For simplicity, you can accept the first friend request in the list
-            
-            AcceptFriendRequest(DataSaver.instance.userId, friendId);
-        }
-        else
-        {
-            Debug.LogWarning("No friend requests to accept.");
-        }
-    }
-    private void Decline()
-    {
-
+        AcceptFriendRequest(DataSaver.instance.userId, friendId);
     }
     public void AcceptFriendRequest(string userId, string friendId)
     {
@@ -44,15 +29,20 @@ public class FriendRequestManager : MonoBehaviour
 
         // Remove the friend request
         databaseReference.Child("friendRequests").Child(userId).Child(friendId).RemoveValueAsync();
-        DataSaver.instance.dts.friends.Add(friendId);
-        DataSaver.instance.dts.friendRequests.Remove(friendId);
-        DataSaver.instance.SaveData();
+        DataSaver.instance.LoadData();
         Destroy(this.gameObject);
+    }
+
+    private void Decline()
+    {
+        DeclineFriendRequest(DataSaver.instance.userId, friendId);
     }
 
     public void DeclineFriendRequest(string userId, string friendId)
     {
         // Remove the friend request
         databaseReference.Child("friendRequests").Child(userId).Child(friendId).RemoveValueAsync();
+        DataSaver.instance.LoadData();
+        Destroy(this.gameObject);
     }
 }

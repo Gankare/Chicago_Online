@@ -63,6 +63,11 @@ public class DataSaver : MonoBehaviour
 
             // Load friend requests
             yield return StartCoroutine(LoadFriendRequests());
+
+            // Load current friends
+            yield return StartCoroutine(LoadCurrentFriends());
+
+            // Save data after loading
             SaveData();
         }
         else
@@ -95,5 +100,30 @@ public class DataSaver : MonoBehaviour
         {
             Debug.Log("No friend requests found");
         }
+    }
+    IEnumerator LoadCurrentFriends()
+    {
+        // Clear the existing friends
+        dts.friends.Clear();
+
+        foreach (string friendId in dts.friends)
+        {
+            // Fetch the user data based on the friend ID
+            var userData = dbRef.Child("users").Child(friendId).GetValueAsync();
+            yield return new WaitUntil(() => userData.IsCompleted);
+
+            DataSnapshot userSnapshot = userData.Result;
+
+            if (userSnapshot.Exists)
+            {
+                string friendUsername = userSnapshot.Child("userName").Value.ToString();
+                dts.friends.Add(friendUsername);
+            }
+            else
+            {
+                Debug.LogWarning($"User with ID {friendId} not found.");
+            }
+        }
+        Debug.Log("Current friends loaded");
     }
 }
