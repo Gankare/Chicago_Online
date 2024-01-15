@@ -22,14 +22,33 @@ public class FriendButton : MonoBehaviour
 
     public void Remove()
     {
-        RemoveFriend(DataSaver.instance.userId, friendId);
+        StartCoroutine(RemoveFriend(DataSaver.instance.userId, friendId));
     }
-    public void RemoveFriend(string userId, string friendId)
+    IEnumerator RemoveFriend(string userId, string friendId)
     {
         // Remove friends from each other's friend list
-        databaseReference.Child("users").Child(userId).Child("friends").Child(friendId).RemoveValueAsync();
-        databaseReference.Child("users").Child(friendId).Child("friends").Child(userId).RemoveValueAsync();
-        DataSaver.instance.LoadData();
-        Destroy(this.gameObject);
+        var removeFriendTask1 = databaseReference.Child("users").Child(userId).Child("friends").Child(friendId).RemoveValueAsync();
+        var removeFriendTask2 = databaseReference.Child("users").Child(friendId).Child("friends").Child(userId).RemoveValueAsync();
+
+        // Wait until both friend removals are complete
+        yield return new WaitUntil(() => removeFriendTask1.IsCompleted && removeFriendTask2.IsCompleted);
+
+        // Load data and wait until it's completed
+        yield return StartCoroutine(LoadDataAndWait());
+
+        // Destroy the game object
+        Destroy(gameObject);
+    }
+
+    IEnumerator LoadDataAndWait()
+    {
+        // Load data
+        var loadDataEnumerator = DataSaver.instance.LoadDataEnum();
+
+        // Iterate through the enumerator until it's done
+        while (loadDataEnumerator.MoveNext())
+        {
+            yield return loadDataEnumerator.Current;
+        }
     }
 }

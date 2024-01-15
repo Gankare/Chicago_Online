@@ -21,30 +21,59 @@ public class FriendRequestButton : MonoBehaviour
     }
     public void Accept()
     {
-        AcceptFriendRequest(DataSaver.instance.userId, friendId);
+        StartCoroutine(AcceptFriendRequestCoroutine(DataSaver.instance.userId, friendId));
     }
-    public void AcceptFriendRequest(string userId, string friendId)
+
+    IEnumerator AcceptFriendRequestCoroutine(string userId, string friendId)
     {
         // Add friends to each other's friend list
-        databaseReference.Child("users").Child(userId).Child("friends").Child(friendId).SetValueAsync(true);
-        databaseReference.Child("users").Child(friendId).Child("friends").Child(userId).SetValueAsync(true);
+        var addFriendTask1 = databaseReference.Child("users").Child(userId).Child("friends").Child(friendId).SetValueAsync(true);
+        var addFriendTask2 = databaseReference.Child("users").Child(friendId).Child("friends").Child(userId).SetValueAsync(true);
+
+        // Wait until both friend requests are complete
+        yield return new WaitUntil(() => addFriendTask1.IsCompleted && addFriendTask2.IsCompleted);
 
         // Remove the friend request
-        databaseReference.Child("friendRequests").Child(userId).Child(friendId).RemoveValueAsync();
-        DataSaver.instance.LoadData();
-        Destroy(this.gameObject);
+        var removeRequestTask = databaseReference.Child("friendRequests").Child(userId).Child(friendId).RemoveValueAsync();
+
+        // Wait until the friend request removal is complete
+        yield return new WaitUntil(() => removeRequestTask.IsCompleted);
+
+        // Load data and wait until it's completed
+        yield return StartCoroutine(LoadDataAndWait());
+
+        // Destroy the game object
+        Destroy(gameObject);
     }
 
     public void Decline()
     {
-        DeclineFriendRequest(DataSaver.instance.userId, friendId);
+        StartCoroutine(DeclineFriendRequestCoroutine(DataSaver.instance.userId, friendId));
     }
 
-    public void DeclineFriendRequest(string userId, string friendId)
+    IEnumerator DeclineFriendRequestCoroutine(string userId, string friendId)
     {
         // Remove the friend request
-        databaseReference.Child("friendRequests").Child(userId).Child(friendId).RemoveValueAsync();
-        DataSaver.instance.LoadData();
-        Destroy(this.gameObject);
+        var removeRequestTask = databaseReference.Child("friendRequests").Child(userId).Child(friendId).RemoveValueAsync();
+
+        // Wait until the friend request removal is complete
+        yield return new WaitUntil(() => removeRequestTask.IsCompleted);
+
+        // Load data and wait until it's completed
+        yield return StartCoroutine(LoadDataAndWait());
+
+        // Destroy the game object
+        Destroy(gameObject);
+    }
+    IEnumerator LoadDataAndWait()
+    {
+        // Load data
+        var loadDataEnumerator = DataSaver.instance.LoadDataEnum();
+
+        // Iterate through the enumerator until it's done
+        while (loadDataEnumerator.MoveNext())
+        {
+            yield return loadDataEnumerator.Current;
+        }
     }
 }

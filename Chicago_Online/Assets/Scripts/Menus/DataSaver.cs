@@ -48,7 +48,7 @@ public class DataSaver : MonoBehaviour
     {
         StartCoroutine(LoadDataEnum());
     }
-    IEnumerator LoadDataEnum()
+    public IEnumerator LoadDataEnum()
     {
         var serverData = dbRef.Child("users").Child(userId).GetValueAsync();
         yield return new WaitUntil(() => serverData.IsCompleted);

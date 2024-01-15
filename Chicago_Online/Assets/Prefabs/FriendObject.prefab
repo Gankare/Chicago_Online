@@ -614,6 +614,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   friendId: 
+  friendName: {fileID: 5831443477760870902}
 --- !u!1 &7962260314380690005
 GameObject:
   m_ObjectHideFlags: 0
