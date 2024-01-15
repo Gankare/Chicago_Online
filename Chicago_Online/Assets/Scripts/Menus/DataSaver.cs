@@ -63,6 +63,7 @@ public class DataSaver : MonoBehaviour
 
             // Load friend requests
             yield return StartCoroutine(LoadFriendRequests());
+            SaveData();
         }
         else
         {

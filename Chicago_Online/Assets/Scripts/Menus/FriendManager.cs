@@ -60,29 +60,13 @@ public class FriendManager : MonoBehaviour
             Debug.Log("Friend Exists");
             // Save friend request in the database
             databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).SetValueAsync(true);
+            DataSaver.instance.SaveData();
         }
         else
         {
             warningText.text = "User does not exist";
         }
     }
-
-    public void AcceptFriendRequest(string userId, string friendId)
-    {
-        // Add friends to each other's friend list
-        databaseReference.Child("users").Child(userId).Child("friends").Child(friendId).SetValueAsync(true);
-        databaseReference.Child("users").Child(friendId).Child("friends").Child(userId).SetValueAsync(true);
-
-        // Remove the friend request
-        databaseReference.Child("friendRequests").Child(userId).Child(friendId).RemoveValueAsync();
-    }
-
-    public void DeclineFriendRequest(string userId, string friendId)
-    {
-        // Remove the friend request
-        databaseReference.Child("friendRequests").Child(userId).Child(friendId).RemoveValueAsync();
-    }
-
     public void RemoveFriend(string userId, string friendId)
     {
         // Remove friends from each other's friend list
