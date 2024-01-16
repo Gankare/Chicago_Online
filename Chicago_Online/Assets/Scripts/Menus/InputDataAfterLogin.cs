@@ -50,7 +50,8 @@ public class InputDataAfterLogin : MonoBehaviour
     }
     IEnumerator GetRequestUsernameAndDisplay(string friendId, Transform parent, List<GameObject> instantiatedList)
     {
-        Debug.Log("Fetching data for friend request: " + friendId);
+        Debug.Log("Fetching data for friend request: " + friendId.ToString());
+
         // Fetch the user data based on the friend ID
         var userData = DataSaver.instance.dbRef.Child("users").Child(friendId).GetValueAsync();
         yield return new WaitUntil(() => userData.IsCompleted);
@@ -81,7 +82,7 @@ public class InputDataAfterLogin : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"User with ID {friendId} not found.");
+            Debug.LogWarning($"User with ID {friendId} not found in friend requests.");
         }
     }
 

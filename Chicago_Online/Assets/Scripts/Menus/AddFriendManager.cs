@@ -44,7 +44,7 @@ public class AddFriendManager : MonoBehaviour
             //Check error thing if user already sent request or if they are allready friends then give warning and return else continue below
 
             // Save friend request in the database
-            databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).SetValueAsync(true);
+            databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).SetValueAsync(senderId);
             DataSaver.instance.LoadData();
             warningText.text = "";
         }
