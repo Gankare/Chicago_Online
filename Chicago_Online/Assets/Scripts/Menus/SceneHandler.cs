@@ -26,7 +26,7 @@ public class SceneHandler : MonoBehaviour
     public void RegisterMenu()
     {
         registerMenu.SetActive(true);
-        loginMenu.SetActive(false); 
+        loginMenu.SetActive(false);
     }
     public void LoadServerScene()
     {

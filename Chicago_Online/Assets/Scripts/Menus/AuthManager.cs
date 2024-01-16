@@ -6,7 +6,6 @@ using Firebase.Auth;
 using TMPro;
 using System.Threading.Tasks;
 using Firebase.Database;
-using Firebase.Extensions;
 
 public class AuthManager : MonoBehaviour
 {

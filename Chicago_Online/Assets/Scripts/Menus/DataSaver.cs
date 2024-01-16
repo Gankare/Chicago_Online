@@ -4,7 +4,7 @@ using UnityEngine;
 using System;
 using Firebase.Database;
 using Firebase;
-using Firebase.Extensions;
+using UnityEngine.SceneManagement;
 
 [Serializable]
 public class DataToSave
@@ -65,10 +65,12 @@ public class DataSaver : MonoBehaviour
             yield return StartCoroutine(LoadFriendRequests());
 
             // Load current friends
-            yield return StartCoroutine(LoadCurrentFriends());
+            yield return StartCoroutine(LoadFriends());
 
             // Save data after loading
             SaveData();
+            //if(SceneManager.GetActiveScene().name == "ServerScene")
+            //InputDataAfterLogin.instance.ShowPlayerProfile();
         }
         else
         {
@@ -78,6 +80,9 @@ public class DataSaver : MonoBehaviour
 
     IEnumerator LoadFriendRequests()
     {
+        // Clear the existing friend requests
+        dts.friendRequests.Clear();
+
         var friendRequestsData = dbRef.Child("friendRequests").Child(userId).GetValueAsync();
         yield return new WaitUntil(() => friendRequestsData.IsCompleted);
 
@@ -85,13 +90,10 @@ public class DataSaver : MonoBehaviour
 
         if (friendRequestsSnapshot.Exists)
         {
-            // Clear the existing friend requests
-            dts.friendRequests.Clear();
-
             foreach (var requestSnapshot in friendRequestsSnapshot.Children)
             {
-                string friendId = requestSnapshot.Key;
-                dts.friendRequests.Add(friendId);
+                string friendRequestId = requestSnapshot.Value.ToString();
+                dts.friendRequests.Add(friendRequestId);
             }
 
             Debug.Log("Friend requests loaded");
@@ -101,29 +103,30 @@ public class DataSaver : MonoBehaviour
             Debug.Log("No friend requests found");
         }
     }
-    IEnumerator LoadCurrentFriends()
+
+    IEnumerator LoadFriends()
     {
         // Clear the existing friends
         dts.friends.Clear();
 
-        foreach (string friendId in dts.friends)
+        var friendsData = dbRef.Child("users").Child(userId).Child("friends").GetValueAsync();
+        yield return new WaitUntil(() => friendsData.IsCompleted);
+
+        DataSnapshot friendsSnapshot = friendsData.Result;
+
+        if (friendsSnapshot.Exists)
         {
-            // Fetch the user data based on the friend ID
-            var userData = dbRef.Child("users").Child(friendId).GetValueAsync();
-            yield return new WaitUntil(() => userData.IsCompleted);
-
-            DataSnapshot userSnapshot = userData.Result;
-
-            if (userSnapshot.Exists)
+            foreach (var friendSnapshot in friendsSnapshot.Children)
             {
-                string friendUsername = userSnapshot.Child("userName").Value.ToString();
-                dts.friends.Add(friendUsername);
+                string friendId = friendSnapshot.Key;
+                dts.friends.Add(friendId);
             }
-            else
-            {
-                Debug.LogWarning($"User with ID {friendId} not found.");
-            }
+
+            Debug.Log("Friends loaded");
         }
-        Debug.Log("Current friends loaded");
+        else
+        {
+            Debug.Log("No friends found");
+        }
     }
 }
