@@ -118,8 +118,9 @@ public class DataSaver : MonoBehaviour
         {
             foreach (var friendSnapshot in friendsSnapshot.Children)
             {
-                string friendId = friendSnapshot.Key;
+                string friendId = friendSnapshot.Value.ToString();
                 dts.friends.Add(friendId);
+                Debug.Log("Added friend " + friendId);
             }
 
             Debug.Log("Friends loaded");
