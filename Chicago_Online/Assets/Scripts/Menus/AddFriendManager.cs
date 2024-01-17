@@ -59,9 +59,9 @@ public class AddFriendManager : MonoBehaviour
                             {
                                 DataSnapshot friendRequestSnapshotResult = friendRequestTask.Result;
 
-                                if (friendRequestSnapshotResult.Exists)
+                                if (friendRequestSnapshotResult.Exists || DataSaver.instance.dts.friendRequests.Contains(receiverUsername))
                                 {
-                                    warningText.text = "Friend request already sent.";
+                                    warningText.text = "Friend request already active.";
                                 }
                                 else
                                 {
