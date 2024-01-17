@@ -81,7 +81,7 @@ SpriteRenderer:
   m_Size: {x: 0.4, y: 0.6}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!1 &6582741677547795743
@@ -94,7 +94,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8547896122240654918}
   - component: {fileID: 614655561118101563}
-  - component: {fileID: 1102681939771237424}
+  - component: {fileID: 8731529147153861394}
   m_Layer: 0
   m_Name: Card
   m_TagString: Untagged
@@ -167,10 +167,10 @@ SpriteRenderer:
   m_Size: {x: 0.16, y: 0.16}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!114 &1102681939771237424
+--- !u!114 &8731529147153861394
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -179,7 +179,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 6582741677547795743}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 74ef9ea66ceebdb42aa3ce4c2a401204, type: 3}
+  m_Script: {fileID: 11500000, guid: 8516e45017be5ee4db41c0f5d6276043, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   power: 0
