@@ -27,8 +27,8 @@ public class FriendRequestButton : MonoBehaviour
     IEnumerator AcceptFriendRequestCoroutine(string userId, string friendId)
     {
         // Add friends to each other's friend list
-        var addFriendTask1 = databaseReference.Child("users").Child(userId).Child("friends").Child(friendId).SetValueAsync(true);
-        var addFriendTask2 = databaseReference.Child("users").Child(friendId).Child("friends").Child(userId).SetValueAsync(true);
+        var addFriendTask1 = databaseReference.Child("userFriends").Child(userId).Child(friendId).SetValueAsync(friendId);
+        var addFriendTask2 = databaseReference.Child("userFriends").Child(friendId).Child(userId).SetValueAsync(userId);
 
         // Wait until both friend requests are complete
         yield return new WaitUntil(() => addFriendTask1.IsCompleted && addFriendTask2.IsCompleted);
@@ -42,6 +42,9 @@ public class FriendRequestButton : MonoBehaviour
         // Load data and wait until it's completed
         yield return StartCoroutine(LoadDataAndWait());
 
+        InputDataAfterLogin.instance.ShowPlayerProfile();
+
+        yield return new WaitForSeconds(1);
         // Destroy the game object
         Destroy(gameObject);
     }

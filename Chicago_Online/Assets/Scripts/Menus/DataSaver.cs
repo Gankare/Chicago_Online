@@ -109,7 +109,7 @@ public class DataSaver : MonoBehaviour
         // Clear the existing friends
         dts.friends.Clear();
 
-        var friendsData = dbRef.Child("users").Child(userId).Child("friends").GetValueAsync();
+        var friendsData = dbRef.Child("userFriends").Child(userId).GetValueAsync();
         yield return new WaitUntil(() => friendsData.IsCompleted);
 
         DataSnapshot friendsSnapshot = friendsData.Result;

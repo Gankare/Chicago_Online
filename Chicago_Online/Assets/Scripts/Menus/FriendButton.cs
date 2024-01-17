@@ -38,15 +38,13 @@ public class FriendButton : MonoBehaviour
     IEnumerator Delete(string userId, string friendId)
     {
         // Remove friends from each other's friend list
-        var removeFriendTask1 = databaseReference.Child("users").Child(userId).Child("friends").Child(friendId).RemoveValueAsync();
-        var removeFriendTask2 = databaseReference.Child("users").Child(friendId).Child("friends").Child(userId).RemoveValueAsync();
-
+        var removeFriendTask1 = databaseReference.Child("userFriends").Child(userId).Child(friendId).RemoveValueAsync();
+        var removeFriendTask2 = databaseReference.Child("userFriends").Child(friendId).Child(userId).RemoveValueAsync();
         // Wait until both tasks are completed
         yield return new WaitUntil(() => removeFriendTask1.IsCompleted && removeFriendTask2.IsCompleted);
 
         DataSaver.instance.dts.friends.Remove(friendId);
         DataSaver.instance.SaveData();
-        yield return new WaitForSeconds(0);
     }
     IEnumerator LoadDataAndWait()
     {
