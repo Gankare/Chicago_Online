@@ -2019,6 +2019,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   inputField_FriendName: {fileID: 1036100621}
   warningText: {fileID: 120106896}
+  addFriendMenu: {fileID: 521378802}
 --- !u!1 &788490381
 GameObject:
   m_ObjectHideFlags: 0
