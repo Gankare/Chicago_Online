@@ -12,6 +12,7 @@ public class AddFriendManager : MonoBehaviour
     DatabaseReference databaseReference;
     public TMP_InputField inputField_FriendName;
     public TMP_Text warningText;
+    public TMP_Text confirmText;
     public GameObject addFriendMenu;
 
     void Start()
@@ -33,58 +34,60 @@ public class AddFriendManager : MonoBehaviour
         // Check username availability
         Task<string> getUserIdTask = GetUserIdByUsername(receiverUsername);
 
-        getUserIdTask.ContinueWith(task =>
+        // Wait until the task is completed
+        yield return new WaitUntil(() => getUserIdTask.IsCompleted);
+
+        string receiverId = getUserIdTask.Result;
+
+        // Continue with the registration process if the userId is available
+        if (!string.IsNullOrEmpty(receiverId))
         {
-            // This block will be executed when the task is completed
-            if (task.IsCompleted)
+            // Check if the receiver is already a friend
+            if (DataSaver.instance.dts.friends.Contains(receiverUsername))
             {
-                string receiverId = task.Result;
+                warningText.text = "User is already your friend.";
+            }
+            else
+            {
+                // Check if a friend request has already been sent
+                var friendRequestSnapshot = databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).GetValueAsync();
 
-                // Continue with the registration process if the userId is available
-                if (!string.IsNullOrEmpty(receiverId))
+                // Wait until the task is completed
+                yield return new WaitUntil(() => friendRequestSnapshot.IsCompleted);
+
+                DataSnapshot friendRequestSnapshotResult = friendRequestSnapshot.Result;
+
+                if (friendRequestSnapshotResult.Exists || DataSaver.instance.dts.friendRequests.Contains(receiverUsername))
                 {
-                    // Check if the receiver is already a friend
-                    if (DataSaver.instance.dts.friends.Contains(receiverUsername))
-                    {
-                        warningText.text = "User is already your friend.";
-                    }
-                    // Check if a friend request has already been sent
-                    else
-                    {
-                        var friendRequestSnapshot = databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).GetValueAsync();
-
-                        friendRequestSnapshot.ContinueWith(friendRequestTask =>
-                        {
-                            if (friendRequestTask.IsCompleted)
-                            {
-                                DataSnapshot friendRequestSnapshotResult = friendRequestTask.Result;
-
-                                if (friendRequestSnapshotResult.Exists || DataSaver.instance.dts.friendRequests.Contains(receiverUsername))
-                                {
-                                    warningText.text = "Friend request already active.";
-                                }
-                                else
-                                {
-                                    Debug.Log("sent request");
-                                    // Save friend request in the database
-                                    addFriendMenu.SetActive(false);
-                                    databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).SetValueAsync(senderId);
-                                    DataSaver.instance.LoadData();
-                                    warningText.text = "";
-                                }
-                            }
-                        });
-                    }
+                    warningText.text = "Friend request already active.";
                 }
                 else
                 {
-                    warningText.text = "User does not exist";
+                    if (databaseReference != null)
+                    {
+                        // Save friend request in the database
+                        databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).SetValueAsync(senderId);
+                        warningText.text = "";
+                        confirmText.text = "Friendrequest sent";
+
+                        // Load data and wait until it's completed
+                        yield return StartCoroutine(LoadDataAndWait());
+
+                        Debug.Log("sent request");
+                        addFriendMenu.SetActive(false);
+                        confirmText.text = "";
+                    }
+                    else
+                    {
+                        Debug.Log("Databasereference is null");
+                    }
                 }
             }
-        });
-
-        // You can yield here if needed
-        yield return null;
+        }
+        else
+        {
+            warningText.text = "User does not exist";
+        }
     }
 
     private async Task<string> GetUserIdByUsername(string username)
@@ -104,5 +107,17 @@ public class AddFriendManager : MonoBehaviour
         }
         // Username does not exist
         return null;
+    }
+
+    IEnumerator LoadDataAndWait()
+    {
+        // Load data
+        var loadDataEnumerator = DataSaver.instance.LoadDataEnum();
+
+        // Iterate through the enumerator until it's done
+        while (loadDataEnumerator.MoveNext())
+        {
+            yield return loadDataEnumerator.Current;
+        }
     }
 }
