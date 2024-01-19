@@ -7,19 +7,9 @@ using System.Collections;
 
 public class ServerManager : MonoBehaviour
 {
-    #region Singleton
-    public static ServerManager instance;
-
-    private void Awake()
-    {
-        DontDestroyOnLoad(transform.gameObject);
-        if (instance == null) instance = this;
-        else Destroy(this);
-    }
-    #endregion
 
     DatabaseReference databaseReference;
-    string serverId = "yourServerId"; // Replace with your server ID
+    public string serverId;
 
     void Start()
     {
@@ -28,15 +18,6 @@ public class ServerManager : MonoBehaviour
             FirebaseApp app = FirebaseApp.DefaultInstance;
             databaseReference = FirebaseDatabase.DefaultInstance.RootReference;
         });
-    }
-
-    void Update()
-    {
-        // Check for players and start the game if conditions are met
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            StartGame();
-        }
     }
 
     public void PlayerConnected(string userId)
@@ -49,29 +30,59 @@ public class ServerManager : MonoBehaviour
         StartCoroutine(UpdatePlayerStatus(userId, false));
     }
 
+    public void PlayerReady(string userId, bool isReady)
+    {
+        StartCoroutine(UpdatePlayerReadyStatus(userId, isReady));
+
+        // Check if all players are ready
+        CheckAllPlayersReady();
+    }
+
+    public void PlayerUnReady(string userId, bool isReady)
+    {
+        StartCoroutine(UpdatePlayerReadyStatus(userId, isReady));
+
+        // Check if all players are ready
+        CheckAllPlayersReady();
+    }
+
     IEnumerator UpdatePlayerStatus(string userId, bool isConnected)
     {
         yield return new WaitForEndOfFrame(); // Wait for the end of the frame to ensure Firebase is initialized
 
         if (databaseReference != null)
         {
-            databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).SetValueAsync(isConnected);
+            databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("connected").SetValueAsync(isConnected);
+
+            // Check if the player is disconnecting
+            if (!isConnected)
+            {
+                // Remove the player's entry from the database
+                databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
+
+                // Check if this is the local player (the one running this script)
+                if (userId == DataSaver.instance.userId)
+                {
+                    // Return to the server scene
+                    SceneManager.LoadScene("ServerScene");
+                }
+            }
+        }
+    }
+
+    IEnumerator UpdatePlayerReadyStatus(string userId, bool isReady)
+    {
+        yield return new WaitForEndOfFrame(); // Wait for the end of the frame to ensure Firebase is initialized
+
+        if (databaseReference != null)
+        {
+            databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("ready").SetValueAsync(isReady);
         }
     }
 
     void StartGame()
     {
-        // Get the player count
-        int playerCount = GetPlayerCount();
-
-        if (playerCount >= 2)
-        {
-            SceneManager.LoadScene("GameScene"); // Replace with your game scene name
-        }
-        else
-        {
-            Debug.Log("Waiting for more players to join...");
-        }
+        SceneManager.LoadScene("GameScene"); // Replace with your game scene name
     }
 
     int GetPlayerCount()
@@ -84,7 +95,7 @@ public class ServerManager : MonoBehaviour
         {
             foreach (var playerSnapshot in snapshot.Children)
             {
-                bool isConnected = bool.Parse(playerSnapshot.Value.ToString());
+                bool isConnected = bool.Parse(playerSnapshot.Child("connected").Value.ToString());
                 if (isConnected)
                 {
                     count++;
@@ -93,5 +104,32 @@ public class ServerManager : MonoBehaviour
         }
 
         return count;
+    }
+
+    void CheckAllPlayersReady()
+    {
+        DataSnapshot snapshot = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync().Result;
+
+        if (snapshot.Exists)
+        {
+            bool allPlayersReady = true;
+
+            foreach (var playerSnapshot in snapshot.Children)
+            {
+                bool isConnected = bool.Parse(playerSnapshot.Child("connected").Value.ToString());
+                bool isReady = bool.Parse(playerSnapshot.Child("ready").Value.ToString());
+
+                if (isConnected && !isReady)
+                {
+                    allPlayersReady = false;
+                    break;
+                }
+            }
+
+            if (allPlayersReady)
+            {
+                StartGame();
+            }
+        }
     }
 }
