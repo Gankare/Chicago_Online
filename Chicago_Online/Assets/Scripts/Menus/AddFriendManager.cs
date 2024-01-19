@@ -50,7 +50,7 @@ public class AddFriendManager : MonoBehaviour
             }
             else
             {
-                var friendRequestSnapshot = databaseReference.Child("friendRequests").Child(senderId).Child(receiverId).GetValueAsync();
+                var friendRequestSnapshot = databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).GetValueAsync();
 
                 yield return new WaitUntil(() => friendRequestSnapshot.IsCompleted);
 
