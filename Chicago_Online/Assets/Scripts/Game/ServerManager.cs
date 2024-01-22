@@ -7,12 +7,24 @@ using System.Collections;
 
 public class ServerManager : MonoBehaviour
 {
+    #region Singleton
+    public static ServerManager instance;
+
+    private void Awake()
+    {
+        DontDestroyOnLoad(transform.gameObject);
+        if (instance == null) instance = this;
+        else Destroy(this);
+    }
+    #endregion
 
     DatabaseReference databaseReference;
     public string serverId;
+    public bool gameHasStarted = false;
 
     void Start()
     {
+        DontDestroyOnLoad(this.gameObject);
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
         {
             FirebaseApp app = FirebaseApp.DefaultInstance;
@@ -22,11 +34,13 @@ public class ServerManager : MonoBehaviour
 
     public void PlayerConnected(string userId)
     {
+        gameHasStarted = false;
         StartCoroutine(UpdatePlayerStatus(userId, true));
     }
 
     public void PlayerDisconnected(string userId)
     {
+        gameHasStarted = false;
         StartCoroutine(UpdatePlayerStatus(userId, false));
     }
 
@@ -82,10 +96,11 @@ public class ServerManager : MonoBehaviour
 
     void StartGame()
     {
-        SceneManager.LoadScene("GameScene"); // Replace with your game scene name
+        gameHasStarted = true;
+        SceneManager.LoadScene(serverId);
     }
 
-    int GetPlayerCount()
+    public int GetPlayerCount()
     {
         // Read the player count from the database
         DataSnapshot snapshot = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync().Result;
