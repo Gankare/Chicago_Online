@@ -4,6 +4,7 @@ using Firebase.Database;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System.Collections;
+using UnityEditor;
 
 public class ServerManager : MonoBehaviour
 {
@@ -24,6 +25,11 @@ public class ServerManager : MonoBehaviour
 
     void Start()
     {
+        if (SceneManager.GetActiveScene().name == "MenuScene")
+        {
+            Destroy(this.gameObject);
+        }
+        else
         DontDestroyOnLoad(this.gameObject);
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
         {
@@ -44,15 +50,7 @@ public class ServerManager : MonoBehaviour
         StartCoroutine(UpdatePlayerStatus(userId, false));
     }
 
-    public void PlayerReady(string userId, bool isReady)
-    {
-        StartCoroutine(UpdatePlayerReadyStatus(userId, isReady));
-
-        // Check if all players are ready
-        CheckAllPlayersReady();
-    }
-
-    public void PlayerUnReady(string userId, bool isReady)
+    public void PlayerReadyStatus(string userId, bool isReady)
     {
         StartCoroutine(UpdatePlayerReadyStatus(userId, isReady));
 

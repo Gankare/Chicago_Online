@@ -9,21 +9,14 @@ using UnityEngine.SceneManagement;
 
 public class DisplayServerButton : MonoBehaviour
 {
-    DatabaseReference databaseReference;
     public TMP_Text buttonText;
     public string serverId;
     public string waitingRoomId;
 
     private void Start()
     {
-        FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
-        {
-            FirebaseApp app = FirebaseApp.DefaultInstance;
-            databaseReference = FirebaseDatabase.DefaultInstance.RootReference;
-        });
-
         // Listen for changes in the server's players
-        databaseReference.Child("servers").Child(serverId).Child("players").ChildChanged += HandlePlayerChanged;
+        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").ChildChanged += HandlePlayerChanged;
 
         // Initial count
         StartCoroutine(CountPlayers());
@@ -48,7 +41,7 @@ public class DisplayServerButton : MonoBehaviour
 
     void RemovePlayerChangedListener()
     {
-        databaseReference.Child("servers").Child(serverId).Child("players").ChildChanged -= HandlePlayerChanged;
+        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").ChildChanged -= HandlePlayerChanged;
     }
 
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
@@ -59,12 +52,12 @@ public class DisplayServerButton : MonoBehaviour
 
     public void TryToJoin()
     {
+        CheckAndCreateServer(serverId);
         SetServerId();
         //join if players in the server is less than 4 and if the game is not started
         if (ServerManager.instance.GetPlayerCount() < 4 && !ServerManager.instance.gameHasStarted)
         {
             // Add the player to the server
-            ServerManager.instance.PlayerConnected(DataSaver.instance.userId);
             SceneManager.LoadScene(waitingRoomId);
         }
         else
@@ -72,11 +65,36 @@ public class DisplayServerButton : MonoBehaviour
             Debug.Log("Cannot join the server.");
         }
     }
+    void CheckAndCreateServer(string serverId)
+    {
+        var serverReference = DataSaver.instance.dbRef.Child("servers").Child(serverId);
 
+        serverReference.GetValueAsync().ContinueWithOnMainThread(task =>
+        {
+            if (task.IsFaulted || task.IsCanceled)
+            {
+                Debug.LogError($"Error checking server existence for {serverId}. Error: {task.Exception}");
+                return;
+            }
+
+            DataSnapshot snapshot = task.Result;
+
+            if (!snapshot.Exists)
+            {
+                Debug.Log($"Server {serverId} does not exist. Creating...");
+                // If the server does not exist, create it
+                serverReference.Child("players").SetValueAsync(1);
+            }
+            else
+            {
+                Debug.Log($"Server {serverId} already exists.");
+            }
+        });
+    }
     IEnumerator CountPlayers()
     {
         int players = 0;
-        var playersInServer = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync();
+        var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => playersInServer.IsCompleted);
         DataSnapshot playersSnapshot = playersInServer.Result;
 
@@ -87,6 +105,6 @@ public class DisplayServerButton : MonoBehaviour
                 players += 1;
             }
         }
-        buttonText.text = databaseReference.Child("servers").Child(serverId).ToString() + " " + players + "/4";
+        buttonText.text = serverId + " " + players + "/4";
     }
 }
