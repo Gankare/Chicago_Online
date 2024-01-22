@@ -75,7 +75,7 @@ public class DisplayServerButton : MonoBehaviour
             Debug.Log($"Server {serverId} does not exist. Creating...");
 
             // If the server does not exist, create it
-            var setValueTask = serverReference.Child("players").SetValueAsync(1);
+            var setValueTask = serverReference.Child("players").SetValueAsync(DataSaver.instance.userId);
             yield return new WaitUntil(() => setValueTask.IsCompleted);
 
             Debug.Log($"Server {serverId} created.");
