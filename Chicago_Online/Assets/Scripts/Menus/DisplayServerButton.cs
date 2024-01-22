@@ -52,9 +52,42 @@ public class DisplayServerButton : MonoBehaviour
 
     public void TryToJoin()
     {
-        CheckAndCreateServer(serverId);
+        StartCoroutine(CheckAndCreateServer(serverId));
+    }
+
+    IEnumerator CheckAndCreateServer(string serverId)
+    {
+        var serverReference = DataSaver.instance.dbRef.Child("servers").Child(serverId);
+
+        var task = serverReference.GetValueAsync();
+        yield return new WaitUntil(() => task.IsCompleted);
+
+        if (task.IsFaulted || task.IsCanceled)
+        {
+            Debug.LogError($"Error checking server existence for {serverId}. Error: {task.Exception}");
+            yield break;
+        }
+
+        DataSnapshot snapshot = task.Result;
+
+        if (!snapshot.Exists)
+        {
+            Debug.Log($"Server {serverId} does not exist. Creating...");
+
+            // If the server does not exist, create it
+            var setValueTask = serverReference.Child("players").SetValueAsync(1);
+            yield return new WaitUntil(() => setValueTask.IsCompleted);
+
+            Debug.Log($"Server {serverId} created.");
+        }
+        else
+        {
+            Debug.Log($"Server {serverId} already exists.");
+        }
+
         SetServerId();
-        //join if players in the server is less than 4 and if the game is not started
+
+        // Join if players in the server are less than 4 and if the game is not started
         if (ServerManager.instance.GetPlayerCount() < 4 && !ServerManager.instance.gameHasStarted)
         {
             // Add the player to the server
@@ -65,32 +98,7 @@ public class DisplayServerButton : MonoBehaviour
             Debug.Log("Cannot join the server.");
         }
     }
-    void CheckAndCreateServer(string serverId)
-    {
-        var serverReference = DataSaver.instance.dbRef.Child("servers").Child(serverId);
 
-        serverReference.GetValueAsync().ContinueWithOnMainThread(task =>
-        {
-            if (task.IsFaulted || task.IsCanceled)
-            {
-                Debug.LogError($"Error checking server existence for {serverId}. Error: {task.Exception}");
-                return;
-            }
-
-            DataSnapshot snapshot = task.Result;
-
-            if (!snapshot.Exists)
-            {
-                Debug.Log($"Server {serverId} does not exist. Creating...");
-                // If the server does not exist, create it
-                serverReference.Child("players").SetValueAsync(1);
-            }
-            else
-            {
-                Debug.Log($"Server {serverId} already exists.");
-            }
-        });
-    }
     IEnumerator CountPlayers()
     {
         int players = 0;
