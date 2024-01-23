@@ -76,8 +76,12 @@ public class DisplayServerButton : MonoBehaviour
             Debug.Log($"Server {serverId} does not exist. Creating...");
 
             // If the server does not exist, create it
-            var setValueTask = serverReference.Child("players").SetValueAsync(DataSaver.instance.userId);
-            yield return new WaitUntil(() => setValueTask.IsCompleted);
+            var setUser = serverReference.Child("players").SetValueAsync(DataSaver.instance.userId);
+            var setUserConnected = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("connected").SetValueAsync(true);
+            var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("ready").SetValueAsync(false);
+            yield return new WaitUntil(() => setUser.IsCompleted);
+            yield return new WaitUntil(() => setUserConnected.IsCompleted);
+            yield return new WaitUntil(() => setUserReady.IsCompleted);
 
             Debug.Log($"Server {serverId} created.");
         }
