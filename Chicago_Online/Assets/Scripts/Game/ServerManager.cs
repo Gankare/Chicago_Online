@@ -64,14 +64,15 @@ public class ServerManager : MonoBehaviour
 
         if (databaseReference != null)
         {
-            databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("connected").SetValueAsync(isConnected);
+            var connectUser = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("connected").SetValueAsync(isConnected);
+            yield return new WaitUntil(() => connectUser.IsCompleted);
 
             // Check if the player is disconnecting
             if (!isConnected)
             {
                 // Remove the player's entry from the database
-                databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
-
+                var removeUserId = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
+                yield return new WaitUntil(() => removeUserId.IsCompleted);
                 // Check if this is the local player (the one running this script)
                 if (userId == DataSaver.instance.userId)
                 {
@@ -88,7 +89,8 @@ public class ServerManager : MonoBehaviour
 
         if (databaseReference != null)
         {
-            databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("ready").SetValueAsync(isReady);
+            var setUserReady = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("ready").SetValueAsync(isReady);
+            yield return new WaitUntil(() => setUserReady.IsCompleted);
         }
     }
 
@@ -118,6 +120,7 @@ public class ServerManager : MonoBehaviour
 
         return count;
     }
+
 
     void CheckAllPlayersReady()
     {
