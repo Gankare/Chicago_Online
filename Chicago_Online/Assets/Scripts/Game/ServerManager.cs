@@ -13,9 +13,16 @@ public class ServerManager : MonoBehaviour
 
     private void Awake()
     {
-        DontDestroyOnLoad(transform.gameObject);
-        if (instance == null) instance = this;
-        else Destroy(this);
+        if (instance == null)
+        {
+            instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
     }
     #endregion
 
@@ -27,15 +34,17 @@ public class ServerManager : MonoBehaviour
     {
         if (SceneManager.GetActiveScene().name == "MenuScene")
         {
-            Destroy(this.gameObject);
+            Destroy(gameObject);
         }
         else
-        DontDestroyOnLoad(this.gameObject);
-        FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
         {
-            FirebaseApp app = FirebaseApp.DefaultInstance;
-            databaseReference = FirebaseDatabase.DefaultInstance.RootReference;
-        });
+            DontDestroyOnLoad(gameObject);
+            FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
+            {
+                FirebaseApp app = FirebaseApp.DefaultInstance;
+                databaseReference = FirebaseDatabase.DefaultInstance.RootReference;
+            });
+        }
     }
 
     public void PlayerConnected(string userId)
@@ -60,23 +69,22 @@ public class ServerManager : MonoBehaviour
 
     IEnumerator UpdatePlayerStatus(string userId, bool isConnected)
     {
-        yield return new WaitForEndOfFrame(); // Wait for the end of the frame to ensure Firebase is initialized
+        yield return new WaitForEndOfFrame();
 
         if (databaseReference != null)
         {
             var connectUser = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("connected").SetValueAsync(isConnected);
+            var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("ready").SetValueAsync(false);
             yield return new WaitUntil(() => connectUser.IsCompleted);
+            yield return new WaitUntil(() => setUserReady.IsCompleted);
 
-            // Check if the player is disconnecting
             if (!isConnected)
             {
-                // Remove the player's entry from the database
                 var removeUserId = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
                 yield return new WaitUntil(() => removeUserId.IsCompleted);
-                // Check if this is the local player (the one running this script)
+
                 if (userId == DataSaver.instance.userId)
                 {
-                    // Return to the server scene
                     SceneManager.LoadScene("ServerScene");
                 }
             }
@@ -85,7 +93,7 @@ public class ServerManager : MonoBehaviour
 
     IEnumerator UpdatePlayerReadyStatus(string userId, bool isReady)
     {
-        yield return new WaitForEndOfFrame(); // Wait for the end of the frame to ensure Firebase is initialized
+        yield return new WaitForEndOfFrame();
 
         if (databaseReference != null)
         {
@@ -102,7 +110,6 @@ public class ServerManager : MonoBehaviour
 
     public int GetPlayerCount()
     {
-        // Read the player count from the database
         DataSnapshot snapshot = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync().Result;
         int count = 0;
 
@@ -120,7 +127,6 @@ public class ServerManager : MonoBehaviour
 
         return count;
     }
-
 
     void CheckAllPlayersReady()
     {

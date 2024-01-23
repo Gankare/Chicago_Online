@@ -9,12 +9,15 @@ using UnityEngine.SceneManagement;
 
 public class DisplayServerButton : MonoBehaviour
 {
+    private Button button;
     public TMP_Text buttonText;
     public string serverId;
     public string waitingRoomId;
 
     private void Start()
     {
+        button = GetComponent<Button>();
+        button.enabled = true;
         StartCoroutine(CountPlayers());
         // Listen for changes in the server's players
         DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").ChildChanged += HandlePlayerChanged;
@@ -22,12 +25,6 @@ public class DisplayServerButton : MonoBehaviour
         // Initial count
         StartCoroutine(CountPlayers());
     }
-
-    public void SetServerId()
-    {
-        ServerManager.instance.serverId = serverId;
-    }
-
     private void OnDisable()
     {
         // Remove the listener when the script is disabled
@@ -44,18 +41,34 @@ public class DisplayServerButton : MonoBehaviour
     {
         DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").ChildChanged -= HandlePlayerChanged;
     }
-
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
     {
         // Handle player connection or disconnection here
         StartCoroutine(CountPlayers());
     }
-
+    public void SetServerId()
+    {
+        ServerManager.instance.serverId = serverId;
+    }
     public void TryToJoin()
     {
-        StartCoroutine(CheckAndCreateServer(serverId));
+        button.enabled = false;
+        StartCoroutine(TryToJoinCoroutine());
     }
+    IEnumerator TryToJoinCoroutine() 
+    {
+        yield return StartCoroutine(CheckAndCreateServer(serverId));
 
+        if (ServerManager.instance.GetPlayerCount() < 4 && !ServerManager.instance.gameHasStarted)
+        {
+            SceneManager.LoadScene(waitingRoomId);
+        }
+        else
+        {
+            Debug.Log("Cannot join the server.");
+            button.enabled = true;
+        }
+    }
     IEnumerator CheckAndCreateServer(string serverId)
     {
         var serverReference = DataSaver.instance.dbRef.Child("servers").Child(serverId);
@@ -89,19 +102,7 @@ public class DisplayServerButton : MonoBehaviour
         {
             Debug.Log($"Server {serverId} already exists.");
         }
-
         SetServerId();
-
-        // Join if players in the server are less than 4 and if the game is not started
-        if (ServerManager.instance.GetPlayerCount() < 4 && !ServerManager.instance.gameHasStarted)
-        {
-            // Add the player to the server
-            SceneManager.LoadScene(waitingRoomId);
-        }
-        else
-        {
-            Debug.Log("Cannot join the server.");
-        }
     }
 
     IEnumerator CountPlayers()
