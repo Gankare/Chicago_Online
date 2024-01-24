@@ -7,6 +7,8 @@ using UnityEngine.UI;
 using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
+using System.Linq;
+using System.Threading.Tasks;
 
 public class WaitingRoomButtons : MonoBehaviour
 {
@@ -32,17 +34,38 @@ public class WaitingRoomButtons : MonoBehaviour
     IEnumerator CountPlayers()
     {
         int players = 0;
+        int playersReady = 0;
+
         var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => playersInServer.IsCompleted);
+
+        if (playersInServer.Exception != null)
+        {
+            Debug.LogError($"Error getting players data: {playersInServer.Exception}");
+            yield break;
+        }
+
         DataSnapshot playersSnapshot = playersInServer.Result;
 
         if (playersSnapshot.Exists)
         {
             foreach (var requestSnapshot in playersSnapshot.Children)
             {
-                players += 1;
+                // Use requestSnapshot directly to get the child value
+                var isPlayerReady = requestSnapshot.Child("ready").Value;
+
+                // Check if the player is ready
+                if (isPlayerReady != null)
+                {
+                    bool readyValue = bool.Parse(isPlayerReady.ToString());
+                    if (readyValue)
+                        playersReady++;
+                }
+
+                players++;
             }
         }
-        amountOfPlayersText.text = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).ToString() + " " + players + "/4";
+
+        amountOfPlayersText.text = $"{playersReady}/{players} players ready";
     }
 }

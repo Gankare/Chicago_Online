@@ -8,20 +8,22 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1057299496318:android:cc5d469f53558a6bba472f",
+        "mobilesdk_app_id": "1:1057299496318:ios:cd9862731a8ffa2eba472f",
         "android_client_info": {
           "package_name": "com.chicago.firebase"
         }
       },
-      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCDj0jCE3j8m79PFh4OnqN_UzztEt7d_Ec"
+          "current_key": "AIzaSyDqDqnZuvVe6LnHsIN8auPZR6q80OrKBEs"
         }
       ],
       "services": {
+        "analytics_service": {
+          "status": 0
+        },
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "status": 1
         }
       }
     }
