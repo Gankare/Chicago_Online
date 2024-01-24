@@ -128,7 +128,7 @@ public class ServerManager : MonoBehaviour
 
             if (allPlayersReady)
             {
-                StartGame(true);
+                StartGame();
             }
         }
     }
@@ -155,6 +155,25 @@ public class ServerManager : MonoBehaviour
             }
 
             callback.Invoke(count);
+        });
+    }
+    public void GetGameStartedFlag(System.Action<bool> callback)
+    {
+        var gameStartedReference = databaseReference.Child("servers").Child(serverId).Child("gameHasStarted");
+
+        gameStartedReference.GetValueAsync().ContinueWithOnMainThread(task =>
+        {
+            if (task.IsFaulted || task.IsCanceled)
+            {
+                Debug.LogError($"Error getting gameHasStarted flag. Error: {task.Exception}");
+                callback.Invoke(false);
+                return;
+            }
+
+            DataSnapshot snapshot = task.Result;
+
+            bool gameStarted = snapshot.Exists && snapshot.Value != null ? bool.Parse(snapshot.Value.ToString()) : false;
+            callback.Invoke(gameStarted);
         });
     }
     void StartGame()

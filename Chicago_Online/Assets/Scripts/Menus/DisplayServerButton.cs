@@ -55,22 +55,27 @@ public class DisplayServerButton : MonoBehaviour
         button.enabled = false;
         StartCoroutine(TryToJoinCoroutine());
     }
-    IEnumerator TryToJoinCoroutine() 
+    IEnumerator TryToJoinCoroutine()
     {
         yield return StartCoroutine(CheckAndCreateServer(serverId));
-        ServerManager.instance.GetPlayerCount(count =>
+
+        ServerManager.instance.GetGameStartedFlag(gameStarted =>
         {
-            if (count < 4 && !gameHasStarted)
+            ServerManager.instance.GetPlayerCount(count =>
             {
-                SceneManager.LoadScene(waitingRoomId);
-            }
-            else
-            {
-                Debug.Log("Cannot join the server.");
-                button.enabled = true;
-            }
+                if (count < 4 && !gameStarted)
+                {
+                    SceneManager.LoadScene(waitingRoomId);
+                }
+                else
+                {
+                    Debug.Log("Cannot join the server.");
+                    button.enabled = true;
+                }
+            });
         });
     }
+
     IEnumerator CheckAndCreateServer(string serverId)
     {
         var serverReference = DataSaver.instance.dbRef.Child("servers").Child(serverId);
