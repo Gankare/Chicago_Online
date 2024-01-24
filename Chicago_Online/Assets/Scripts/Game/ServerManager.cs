@@ -5,8 +5,6 @@ using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System.Collections;
 using UnityEditor;
-using System.Collections.Generic;
-using static UnityEngine.Rendering.DebugUI;
 
 public class ServerManager : MonoBehaviour
 {
@@ -74,8 +72,7 @@ public class ServerManager : MonoBehaviour
         {
             var connectUser = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("connected").SetValueAsync(isConnected);
             var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("ready").SetValueAsync(false);
-            yield return new WaitUntil(() => connectUser.IsCompleted);
-            yield return new WaitUntil(() => setUserReady.IsCompleted);
+            yield return new WaitUntil(() => connectUser.IsCompleted && setUserReady.IsCompleted);
 
             if (!isConnected)
             {
@@ -190,7 +187,7 @@ public class ServerManager : MonoBehaviour
         {
             var setGameStarted = databaseReference.Child("servers").Child(serverId).Child("gameHasStarted").SetValueAsync(true);
             yield return new WaitUntil(() => setGameStarted.IsCompleted);
+            SceneManager.LoadScene(serverId);
         }
-        SceneManager.LoadScene(serverId);
     }
 }
