@@ -5,6 +5,8 @@ using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System.Collections;
 using UnityEditor;
+using System.Collections.Generic;
+using static UnityEngine.Rendering.DebugUI;
 
 public class ServerManager : MonoBehaviour
 {
@@ -28,7 +30,6 @@ public class ServerManager : MonoBehaviour
 
     DatabaseReference databaseReference;
     public string serverId;
-    public bool gameHasStarted = false;
 
     void Start()
     {
@@ -49,13 +50,11 @@ public class ServerManager : MonoBehaviour
 
     public void PlayerConnected(string userId)
     {
-        gameHasStarted = false;
         StartCoroutine(UpdatePlayerStatus(userId, true));
     }
 
     public void PlayerDisconnected(string userId)
     {
-        gameHasStarted = false;
         StartCoroutine(UpdatePlayerStatus(userId, false));
     }
 
@@ -102,35 +101,14 @@ public class ServerManager : MonoBehaviour
         }
     }
 
-    void StartGame()
+
+    public IEnumerator CheckAllPlayersReady()
     {
-        gameHasStarted = true;
-        SceneManager.LoadScene(serverId);
-    }
+        var playersInServer = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync();
 
-    public int GetPlayerCount()
-    {
-        DataSnapshot snapshot = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync().Result;
-        int count = 0;
+        yield return new WaitUntil(() => playersInServer.IsCompleted);
 
-        if (snapshot.Exists)
-        {
-            foreach (var playerSnapshot in snapshot.Children)
-            {
-                bool isConnected = bool.Parse(playerSnapshot.Child("connected").Value.ToString());
-                if (isConnected)
-                {
-                    count++;
-                }
-            }
-        }
-
-        return count;
-    }
-
-    void CheckAllPlayersReady()
-    {
-        DataSnapshot snapshot = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync().Result;
+        DataSnapshot snapshot = playersInServer.Result;
 
         if (snapshot.Exists)
         {
@@ -150,8 +128,50 @@ public class ServerManager : MonoBehaviour
 
             if (allPlayersReady)
             {
-                StartGame();
+                StartGame(true);
             }
         }
+    }
+
+    public void GetPlayerCount(System.Action<int> callback)
+    {
+        int count = 0;
+        var playersInServer = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync();
+
+        playersInServer.ContinueWithOnMainThread(task =>
+        {
+            DataSnapshot snapshot = task.Result;
+
+            if (snapshot.Exists)
+            {
+                foreach (var playerSnapshot in snapshot.Children)
+                {
+                    bool isConnected = bool.Parse(playerSnapshot.Child("connected").Value.ToString());
+                    if (isConnected)
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            callback.Invoke(count);
+        });
+    }
+    void StartGame()
+    {
+        //Set the gamehasstarted in database to true here
+        StartCoroutine(SetGameStartedFlagCoroutine());
+    }
+
+    IEnumerator SetGameStartedFlagCoroutine()
+    {
+        yield return new WaitForEndOfFrame();
+
+        if (databaseReference != null)
+        {
+            var setGameStarted = databaseReference.Child("servers").Child(serverId).Child("gameHasStarted").SetValueAsync(true);
+            yield return new WaitUntil(() => setGameStarted.IsCompleted);
+        }
+        SceneManager.LoadScene(serverId);
     }
 }

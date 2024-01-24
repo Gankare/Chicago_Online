@@ -58,16 +58,18 @@ public class DisplayServerButton : MonoBehaviour
     IEnumerator TryToJoinCoroutine() 
     {
         yield return StartCoroutine(CheckAndCreateServer(serverId));
-
-        if (ServerManager.instance.GetPlayerCount() < 4 && !ServerManager.instance.gameHasStarted)
+        ServerManager.instance.GetPlayerCount(count =>
         {
-            SceneManager.LoadScene(waitingRoomId);
-        }
-        else
-        {
-            Debug.Log("Cannot join the server.");
-            button.enabled = true;
-        }
+            if (count < 4 && !gameHasStarted)
+            {
+                SceneManager.LoadScene(waitingRoomId);
+            }
+            else
+            {
+                Debug.Log("Cannot join the server.");
+                button.enabled = true;
+            }
+        });
     }
     IEnumerator CheckAndCreateServer(string serverId)
     {
@@ -92,9 +94,8 @@ public class DisplayServerButton : MonoBehaviour
             var setUser = serverReference.Child("players").SetValueAsync(DataSaver.instance.userId);
             var setUserConnected = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("connected").SetValueAsync(true);
             var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("ready").SetValueAsync(false);
-            yield return new WaitUntil(() => setUser.IsCompleted);
-            yield return new WaitUntil(() => setUserConnected.IsCompleted);
-            yield return new WaitUntil(() => setUserReady.IsCompleted);
+            var setGameStarted = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameHasStarted").SetValueAsync(false);
+            yield return new WaitUntil(() => setUser.IsCompleted && setUserConnected.IsCompleted && setUserReady.IsCompleted && setGameStarted.IsCompleted);
 
             Debug.Log($"Server {serverId} created.");
         }
