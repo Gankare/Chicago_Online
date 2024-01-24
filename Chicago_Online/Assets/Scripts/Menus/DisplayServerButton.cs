@@ -70,7 +70,6 @@ public class DisplayServerButton : MonoBehaviour
                 else
                 {
                     Debug.Log("Cannot join the server.");
-                    button.enabled = true;
                 }
             });
         });
@@ -113,6 +112,25 @@ public class DisplayServerButton : MonoBehaviour
 
     IEnumerator CountPlayers()
     {
+        ServerManager.instance.GetGameStartedFlag(gameStarted =>
+        {
+            if(gameStarted)
+            {
+                buttonText.text = "Game ongoing";
+                button.enabled = false;
+                return;
+            }
+            ServerManager.instance.GetPlayerCount(count =>
+            {
+                if (count !< 4)
+                {
+                    buttonText.text = "´Server full";
+                    button.enabled = false;
+                    return;
+                }
+            });
+        });
+        button.enabled = true;
         int players = 0;
         var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => playersInServer.IsCompleted);
