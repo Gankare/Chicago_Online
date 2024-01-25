@@ -2,17 +2,27 @@ using Firebase.Extensions;
 using UnityEngine;
 using Firebase;
 using Firebase.Database;
+using UnityEngine.SceneManagement;
 
 public class Player : MonoBehaviour
 {
     void Start()
     {
         CheckIfUserExistsInServer(DataSaver.instance.userId);
+        if (SceneManager.GetActiveScene().name != "ServerScene" && SceneManager.GetActiveScene().name != "MenuScene")
+        {
+            // If not in ServerScene or MenuScene, mark the object as DontDestroyOnLoad
+            DontDestroyOnLoad(this.gameObject);
+        }
+        else
+        {
+            Destroy(this.gameObject);
+        }
     }
     private void OnDestroy()
     {
         ServerManager.instance.PlayerDisconnected(DataSaver.instance.userId);
-    }
+    } 
     private void OnDisable()
     {
         ServerManager.instance.PlayerDisconnected(DataSaver.instance.userId);
