@@ -115,6 +115,10 @@ public class DisplayServerButton : MonoBehaviour
 
     public void UpdatePlayers()
     {
+        if (this == null)  // Check if the script has been destroyed
+        {
+            return;
+        }
         ServerManager.instance.GetGameStartedFlag(gameStarted =>
         {
             if (gameStarted)

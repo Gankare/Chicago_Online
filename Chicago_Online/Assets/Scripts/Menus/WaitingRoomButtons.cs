@@ -16,6 +16,7 @@ public class WaitingRoomButtons : MonoBehaviour
     public List<GameObject> playerObjects;
     public List<TMP_Text> playerNames;
     public List<Image> readyCards;
+    public GameObject buttons;
     private void Start()
     {
         UpdatePlayers();
@@ -51,13 +52,15 @@ public class WaitingRoomButtons : MonoBehaviour
 
     IEnumerator UpdatePlayers()
     {
+        //Reset values
         int players = 0;
         int playersReady = 0;
-        foreach (GameObject card in playerObjects) 
+
+        foreach (GameObject card in playerObjects)
         {
             card.SetActive(false);
         }
-
+        //----------------------------------------------------------------------------------------------------------------------------------------
         var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => playersInServer.IsCompleted);
 
@@ -74,11 +77,12 @@ public class WaitingRoomButtons : MonoBehaviour
             foreach (var requestSnapshot in playersSnapshot.Children)
             {
                 playerObjects[players].SetActive(true);
-                //playerNames[players].text = username of the requestsnapshot userid
-                // Use requestSnapshot directly to get the child value
-                var isPlayerReady = requestSnapshot.Child("ready").Value;
-                var playername = requestSnapshot.Child("username").Value;
+
+                // Get userId from requestSnapshot
+                string userId = requestSnapshot.Key;
+
                 // Check if the player is ready
+                var isPlayerReady = requestSnapshot.Child("ready").Value;
                 if (isPlayerReady != null)
                 {
                     bool readyValue = bool.Parse(isPlayerReady.ToString());
@@ -93,10 +97,34 @@ public class WaitingRoomButtons : MonoBehaviour
                     }
                 }
 
+                // Look up username in "users" node
+                var usernameTask = DataSaver.instance.dbRef.Child("users").Child(userId).Child("userName").GetValueAsync();
+                yield return new WaitUntil(() => usernameTask.IsCompleted);
+
+                if (usernameTask.Exception == null)
+                {
+                    DataSnapshot usernameSnapshot = usernameTask.Result;
+                    if (usernameSnapshot.Exists)
+                    {
+                        // Set the player's name in the UI
+                        playerNames[players].text = usernameSnapshot.Value.ToString();
+                    }
+                }
+
+                if(requestSnapshot.Key == DataSaver.instance.userId)
+                {
+                    buttons.transform.position = new Vector2(playerObjects[players].transform.position.x, -50);
+                }
+
                 players++;
             }
         }
 
         amountOfPlayersText.text = $"{playersReady}/{players} players ready";
+    }
+
+    public void LeaveServer()
+    {
+        SceneManager.LoadScene("ServerScene");
     }
 }

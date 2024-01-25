@@ -32,22 +32,29 @@ public class ServerManager : MonoBehaviour
 
     void Start()
     {
-        if (SceneManager.GetActiveScene().name == "MenuScene")
+        DontDestroyOnLoad(gameObject);
+        FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
+        {
+            FirebaseApp app = FirebaseApp.DefaultInstance;
+            databaseReference = FirebaseDatabase.DefaultInstance.RootReference;
+        });
+    }
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "MenuScene")
         {
             Destroy(gameObject);
         }
-        else
-        {
-            DontDestroyOnLoad(gameObject);
-            FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
-            {
-                FirebaseApp app = FirebaseApp.DefaultInstance;
-                databaseReference = FirebaseDatabase.DefaultInstance.RootReference;
-            });
-        }
     }
-
-
     public void PlayerConnected(string userId)
     {
         StartCoroutine(UpdatePlayerStatus(userId, true));

@@ -6,18 +6,27 @@ using UnityEngine.SceneManagement;
 
 public class Player : MonoBehaviour
 {
-    void Start()
+    #region Singleton
+    public static Player instance;
+
+    private void Awake()
     {
-        CheckIfUserExistsInServer(DataSaver.instance.userId);
-        if (SceneManager.GetActiveScene().name != "ServerScene" && SceneManager.GetActiveScene().name != "MenuScene")
+        if (instance == null)
         {
-            // If not in ServerScene or MenuScene, mark the object as DontDestroyOnLoad
-            DontDestroyOnLoad(this.gameObject);
+            instance = this;
+            DontDestroyOnLoad(gameObject);
         }
         else
         {
-            Destroy(this.gameObject);
+            Destroy(gameObject);
+            return;
         }
+    }
+    #endregion
+
+    void Start()
+    {
+        CheckIfUserExistsInServer(DataSaver.instance.userId);
     }
     private void OnDestroy()
     {
@@ -26,6 +35,18 @@ public class Player : MonoBehaviour
     private void OnDisable()
     {
         ServerManager.instance.PlayerDisconnected(DataSaver.instance.userId);
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "MenuScene" || scene.name == "ServerScene")
+        {
+            Destroy(gameObject);
+        }
     }
 
     void CheckIfUserExistsInServer(string userId)
