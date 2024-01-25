@@ -13,17 +13,18 @@ using System.Threading.Tasks;
 public class WaitingRoomButtons : MonoBehaviour
 {
     public TMP_Text amountOfPlayersText;
+    public List<GameObject> playerObjects;
     public List<TMP_Text> playerNames;
     public List<Image> readyCards;
     private void Start()
     {
-        CountPlayers();
+        UpdatePlayers();
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
     }
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
     {
         // Handle player connection or disconnection here
-        StartCoroutine(CountPlayers());
+        StartCoroutine(UpdatePlayers());
     }
     private void OnDisable()
     {
@@ -48,10 +49,14 @@ public class WaitingRoomButtons : MonoBehaviour
         ServerManager.instance.PlayerReadyStatus(DataSaver.instance.userId, false);
     }
 
-    IEnumerator CountPlayers()
+    IEnumerator UpdatePlayers()
     {
         int players = 0;
         int playersReady = 0;
+        foreach (GameObject card in playerObjects) 
+        {
+            card.SetActive(false);
+        }
 
         var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => playersInServer.IsCompleted);
@@ -68,15 +73,24 @@ public class WaitingRoomButtons : MonoBehaviour
         {
             foreach (var requestSnapshot in playersSnapshot.Children)
             {
+                playerObjects[players].SetActive(true);
+                //playerNames[players].text = username of the requestsnapshot userid
                 // Use requestSnapshot directly to get the child value
                 var isPlayerReady = requestSnapshot.Child("ready").Value;
-
+                var playername = requestSnapshot.Child("username").Value;
                 // Check if the player is ready
                 if (isPlayerReady != null)
                 {
                     bool readyValue = bool.Parse(isPlayerReady.ToString());
                     if (readyValue)
+                    {
                         playersReady++;
+                        readyCards[players].color = Color.green;
+                    }
+                    else
+                    {
+                        readyCards[players].color = Color.clear;
+                    }
                 }
 
                 players++;

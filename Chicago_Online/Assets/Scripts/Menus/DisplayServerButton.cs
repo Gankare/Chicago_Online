@@ -11,19 +11,22 @@ public class DisplayServerButton : MonoBehaviour
 {
     private Button button;
     public TMP_Text buttonText;
-    public string serverId;
     public string waitingRoomId;
+    public string serverId;
 
     private void Start()
     {
         button = GetComponent<Button>();
         button.enabled = true;
-        StartCoroutine(CountPlayers());
+
         // Listen for changes in the server's players
         DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").ChildChanged += HandlePlayerChanged;
 
-        // Initial count
+        //Timer so that serverid loads in before function
+
+        // Start counting players
         StartCoroutine(CountPlayers());
+        Invoke(nameof(UpdatePlayers), 0.5f);
     }
     private void OnDisable()
     {
@@ -44,7 +47,7 @@ public class DisplayServerButton : MonoBehaviour
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
     {
         // Handle player connection or disconnection here
-        StartCoroutine(CountPlayers());
+        UpdatePlayers();
     }
     public void SetServerId()
     {
@@ -71,8 +74,8 @@ public class DisplayServerButton : MonoBehaviour
                 {
                     Debug.Log("Cannot join the server.");
                 }
-            });
-        });
+            },serverId);
+        },serverId);
     }
 
     IEnumerator CheckAndCreateServer(string serverId)
@@ -110,26 +113,31 @@ public class DisplayServerButton : MonoBehaviour
         SetServerId();
     }
 
-    IEnumerator CountPlayers()
+    public void UpdatePlayers()
     {
         ServerManager.instance.GetGameStartedFlag(gameStarted =>
         {
-            if(gameStarted)
+            if (gameStarted)
             {
                 buttonText.text = "Game ongoing";
                 button.enabled = false;
                 return;
             }
+
             ServerManager.instance.GetPlayerCount(count =>
             {
-                if (count !< 4)
+                if (count > 3)
                 {
-                    buttonText.text = "´Server full";
+                    buttonText.text = "Server full";
                     button.enabled = false;
                     return;
                 }
-            });
-        });
+            }, serverId);
+        }, serverId);
+        StartCoroutine(CountPlayers());
+    }
+    IEnumerator CountPlayers()
+    {
         button.enabled = true;
         int players = 0;
         var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
@@ -143,6 +151,7 @@ public class DisplayServerButton : MonoBehaviour
                 players += 1;
             }
         }
-        buttonText.text = serverId + " " + players + "/4";
+        buttonText.text = $"{serverId} {players}/4";
     }
 }
+

@@ -5,6 +5,7 @@ using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System.Collections;
 using UnityEditor;
+using System;
 
 public class ServerManager : MonoBehaviour
 {
@@ -45,6 +46,7 @@ public class ServerManager : MonoBehaviour
             });
         }
     }
+
 
     public void PlayerConnected(string userId)
     {
@@ -98,7 +100,6 @@ public class ServerManager : MonoBehaviour
         }
     }
 
-
     public IEnumerator CheckAllPlayersReady()
     {
         var playersInServer = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync();
@@ -130,10 +131,10 @@ public class ServerManager : MonoBehaviour
         }
     }
 
-    public void GetPlayerCount(System.Action<int> callback)
+    public void GetPlayerCount(System.Action<int> callback, string serverid)
     {
         int count = 0;
-        var playersInServer = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync();
+        var playersInServer = databaseReference.Child("servers").Child(serverid).Child("players").GetValueAsync();
 
         playersInServer.ContinueWithOnMainThread(task =>
         {
@@ -154,25 +155,41 @@ public class ServerManager : MonoBehaviour
             callback.Invoke(count);
         });
     }
-    public void GetGameStartedFlag(System.Action<bool> callback)
+    public async void GetGameStartedFlag(System.Action<bool> callback, string serverid)
     {
-        var gameStartedReference = databaseReference.Child("servers").Child(serverId).Child("gameHasStarted");
+        var serverReference = databaseReference.Child("servers").Child(serverid);
 
-        gameStartedReference.GetValueAsync().ContinueWithOnMainThread(task =>
+        try
         {
-            if (task.IsFaulted || task.IsCanceled)
+            var serverSnapshot = await serverReference.GetValueAsync();
+
+            if (serverSnapshot == null || !serverSnapshot.Exists)
             {
-                Debug.LogError($"Error getting gameHasStarted flag. Error: {task.Exception}");
+                Debug.LogWarning($"Server {serverid} does not exist.");
                 callback.Invoke(false);
                 return;
             }
 
-            DataSnapshot snapshot = task.Result;
+            var gameStartedSnapshot = await serverReference.Child("gameHasStarted").GetValueAsync();
 
-            bool gameStarted = snapshot.Exists && snapshot.Value != null ? bool.Parse(snapshot.Value.ToString()) : false;
+            if (gameStartedSnapshot == null || !gameStartedSnapshot.Exists || gameStartedSnapshot.Value == null)
+            {
+                Debug.LogWarning($"GameHasStarted flag not found for server {serverid}.");
+                callback.Invoke(false);
+                return;
+            }
+
+            bool gameStarted = bool.Parse(gameStartedSnapshot.Value.ToString());
             callback.Invoke(gameStarted);
-        });
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error getting gameHasStarted flag. Error: {ex}");
+            callback.Invoke(false);
+        }
     }
+
+
     void StartGame()
     {
         //Set the gamehasstarted in database to true here
