@@ -60,7 +60,7 @@ public class WaitingRoomButtons : MonoBehaviour
         {
             card.SetActive(false);
         }
-        //----------------------------------------------------------------------------------------------------------------------------------------
+
         var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => playersInServer.IsCompleted);
 
