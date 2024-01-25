@@ -93,7 +93,7 @@ public class WaitingRoomButtons : MonoBehaviour
                     }
                     else
                     {
-                        readyCards[players].color = Color.clear;
+                        readyCards[players].color = Color.white;
                     }
                 }
 

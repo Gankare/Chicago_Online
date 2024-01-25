@@ -46,6 +46,11 @@ public class DisplayServerButton : MonoBehaviour
     }
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
     {
+        if (this == null)
+        {
+            // The object has been destroyed, so we should stop processing
+            return;
+        }
         // Handle player connection or disconnection here
         UpdatePlayers();
     }
