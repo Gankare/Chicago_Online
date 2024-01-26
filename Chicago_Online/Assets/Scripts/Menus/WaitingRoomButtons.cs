@@ -17,15 +17,21 @@ public class WaitingRoomButtons : MonoBehaviour
     public List<TMP_Text> playerNames;
     public List<Image> readyCards;
     public GameObject buttons;
+    private bool isUpdatingPlayers = false;
+
     private void Start()
     {
         UpdatePlayers();
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
     }
+
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
     {
-        // Handle player connection or disconnection here
-        StartCoroutine(UpdatePlayers());
+        // Check if the coroutine is already running
+        if (!isUpdatingPlayers)
+        {
+            StartCoroutine(UpdatePlayers());
+        }
     }
     private void OnDisable()
     {
@@ -53,6 +59,7 @@ public class WaitingRoomButtons : MonoBehaviour
     IEnumerator UpdatePlayers()
     {
         //Reset values
+        isUpdatingPlayers = true;
         int players = 0;
         int playersReady = 0;
 
@@ -113,11 +120,12 @@ public class WaitingRoomButtons : MonoBehaviour
 
                 if(requestSnapshot.Key == DataSaver.instance.userId)
                 {
-                    buttons.transform.position = new Vector2(playerObjects[players].transform.position.x, -50);
+                    buttons.transform.position = new Vector2(playerObjects[players].transform.position.x, buttons.transform.position.y);
                 }
 
                 players++;
             }
+            isUpdatingPlayers = false;
         }
 
         amountOfPlayersText.text = $"{playersReady}/{players} players ready";

@@ -71,6 +71,7 @@ public class Player : MonoBehaviour
             if (!snapshot.Exists)
             {
                 // Player does not exist, connect the player
+                Debug.Log("add player to server");
                 ServerManager.instance.PlayerConnected(userId);
             }
             else

@@ -33,11 +33,21 @@ public class ServerManager : MonoBehaviour
     void Start()
     {
         DontDestroyOnLoad(gameObject);
+
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
         {
             FirebaseApp app = FirebaseApp.DefaultInstance;
-            databaseReference = FirebaseDatabase.DefaultInstance.RootReference;
+            if (app != null)
+            {
+                databaseReference = FirebaseDatabase.DefaultInstance.RootReference;
+                Debug.Log("Firebase initialization successful.");
+            }
+            else
+            {
+                Debug.LogError("Firebase initialization failed.");
+            }
         });
+        StartCoroutine(CheckAndRemoveUserFromServer(DataSaver.instance.userId));
     }
     private void OnEnable()
     {
@@ -71,6 +81,79 @@ public class ServerManager : MonoBehaviour
 
         // Check if all players are ready
         CheckAllPlayersReady();
+    }
+
+    IEnumerator CheckAndRemoveUserFromServer(string userId)
+    {
+        // Get a reference to all servers
+        var serversReference = DataSaver.instance.dbRef.Child("servers");
+
+        // Retrieve data for all servers
+        var serversTask = serversReference.GetValueAsync();
+        yield return new WaitUntil(() => serversTask.IsCompleted);
+
+        if (serversTask.IsFaulted || serversTask.IsCanceled)
+        {
+            Debug.LogError($"Error checking user {userId} connection to servers. Error: {serversTask.Exception}");
+            yield break;
+        }
+
+        DataSnapshot serversSnapshot = serversTask.Result;
+
+        if (serversSnapshot.Exists)
+        {
+            foreach (var serverSnapshot in serversSnapshot.Children)
+            {
+                string serverId = serverSnapshot.Key;
+
+                // Check if the user is connected to the current server
+                var userReference = serverSnapshot.Child("players").Child(userId);
+
+                // Use an asynchronous method to retrieve user data
+                yield return StartCoroutine(GetUserAsync(userReference, userId, serverId));
+            }
+        }
+    }
+
+    IEnumerator GetUserAsync(DataSnapshot userSnapshot, string userId, string serverId)
+    {
+        // Assuming userId is a direct child under the "players" node
+        var userReference = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId);
+
+        // Retrieve user data for the current server
+        var userTask = userReference.GetValueAsync();
+        yield return new WaitUntil(() => userTask.IsCompleted);
+
+        if (userTask.IsFaulted || userTask.IsCanceled)
+        {
+            Debug.LogError($"Error checking user {userId} in server {serverId}. Error: {userTask.Exception}");
+            yield break; // Move on to the next server
+        }
+
+        userSnapshot = userTask.Result;
+
+        if (userSnapshot.Exists)
+        {
+            // User is connected to this server, remove them
+            StartCoroutine(RemoveUserFromServer(userId, serverId));
+        }
+    }
+
+
+    IEnumerator RemoveUserFromServer(string userId, string serverId)
+    {
+        // Remove the user from the server
+        var removeUserTask = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
+        yield return new WaitUntil(() => removeUserTask.IsCompleted);
+
+        if (removeUserTask.Exception != null)
+        {
+            Debug.LogError($"Error removing user {userId} from server {serverId}. Error: {removeUserTask.Exception}");
+        }
+        else
+        {
+            Debug.Log($"User {userId} has been removed from server {serverId}.");
+        }
     }
 
     IEnumerator UpdatePlayerStatus(string userId, bool isConnected)
@@ -195,7 +278,6 @@ public class ServerManager : MonoBehaviour
             callback.Invoke(false);
         }
     }
-
 
     void StartGame()
     {

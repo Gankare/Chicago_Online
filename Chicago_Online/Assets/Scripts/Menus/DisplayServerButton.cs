@@ -13,6 +13,8 @@ public class DisplayServerButton : MonoBehaviour
     public TMP_Text buttonText;
     public string waitingRoomId;
     public string serverId;
+    private bool isUpdatingPlayers = false;
+    private bool joiningServer = false;
 
     private void Start()
     {
@@ -52,7 +54,8 @@ public class DisplayServerButton : MonoBehaviour
             return;
         }
         // Handle player connection or disconnection here
-        UpdatePlayers();
+        if (!isUpdatingPlayers)
+            UpdatePlayers();
     }
     public void SetServerId()
     {
@@ -65,8 +68,10 @@ public class DisplayServerButton : MonoBehaviour
     }
     IEnumerator TryToJoinCoroutine()
     {
+        joiningServer = true;
+        SetServerId();
         yield return StartCoroutine(CheckAndCreateServer(serverId));
-
+     
         ServerManager.instance.GetGameStartedFlag(gameStarted =>
         {
             ServerManager.instance.GetPlayerCount(count =>
@@ -81,6 +86,7 @@ public class DisplayServerButton : MonoBehaviour
                 }
             },serverId);
         },serverId);
+        joiningServer = false;
     }
 
     IEnumerator CheckAndCreateServer(string serverId)
@@ -115,12 +121,12 @@ public class DisplayServerButton : MonoBehaviour
         {
             Debug.Log($"Server {serverId} already exists.");
         }
-        SetServerId();
     }
 
     public void UpdatePlayers()
     {
-        if (this == null)  // Check if the script has been destroyed
+        isUpdatingPlayers = true;
+        if (this == null || joiningServer)  // Check if the script has been destroyed
         {
             return;
         }
@@ -128,6 +134,7 @@ public class DisplayServerButton : MonoBehaviour
         {
             if (gameStarted)
             {
+                Debug.Log("game has started");
                 buttonText.text = "Game ongoing";
                 button.enabled = false;
                 return;
@@ -137,6 +144,7 @@ public class DisplayServerButton : MonoBehaviour
             {
                 if (count > 3)
                 {
+                    Debug.Log("full lobby");
                     buttonText.text = "Server full";
                     button.enabled = false;
                     return;
@@ -144,6 +152,7 @@ public class DisplayServerButton : MonoBehaviour
             }, serverId);
         }, serverId);
         StartCoroutine(CountPlayers());
+        isUpdatingPlayers = false;
     }
     IEnumerator CountPlayers()
     {
