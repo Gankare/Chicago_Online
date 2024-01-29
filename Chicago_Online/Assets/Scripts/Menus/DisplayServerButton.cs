@@ -71,7 +71,6 @@ public class DisplayServerButton : MonoBehaviour
         joiningServer = true;
         SetServerId();
         yield return StartCoroutine(CheckAndCreateServer(serverId));
-     
         ServerManager.instance.GetGameStartedFlag(gameStarted =>
         {
             ServerManager.instance.GetPlayerCount(count =>
@@ -120,6 +119,7 @@ public class DisplayServerButton : MonoBehaviour
         else
         {
             Debug.Log($"Server {serverId} already exists.");
+            yield break;
         }
     }
 

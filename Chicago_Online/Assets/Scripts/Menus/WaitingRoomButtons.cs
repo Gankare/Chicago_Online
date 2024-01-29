@@ -21,7 +21,7 @@ public class WaitingRoomButtons : MonoBehaviour
 
     private void Start()
     {
-        UpdatePlayers();
+        //UpdatePlayers();
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
     }
 

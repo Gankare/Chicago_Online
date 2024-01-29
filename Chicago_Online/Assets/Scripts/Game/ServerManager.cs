@@ -68,6 +68,7 @@ public class ServerManager : MonoBehaviour
     public void PlayerConnected(string userId)
     {
         StartCoroutine(UpdatePlayerStatus(userId, true));
+        StartCoroutine(Player.instance.UpdatePlayerActivity());
     }
 
     public void PlayerDisconnected(string userId)
@@ -237,12 +238,14 @@ public class ServerManager : MonoBehaviour
                     bool isConnected = bool.Parse(playerSnapshot.Child("connected").Value.ToString());
                     if (isConnected)
                     {
+                        Debug.Log("player");
                         count++;
                     }
                 }
             }
 
             callback.Invoke(count);
+            return;
         });
     }
     public async void GetGameStartedFlag(System.Action<bool> callback, string serverid)

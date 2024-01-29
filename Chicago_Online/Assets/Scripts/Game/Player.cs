@@ -30,7 +30,6 @@ public class Player : MonoBehaviour
     void Start()
     {
         CheckIfUserExistsInServer(DataSaver.instance.userId);
-        StartCoroutine(UpdatePlayerActivity());
         StartCoroutine(CheckActivityCoroutine());
     }
     private void OnDestroy()
@@ -44,6 +43,7 @@ public class Player : MonoBehaviour
     }
     private void OnEnable()
     {
+        ServerManager.instance.PlayerConnected(DataSaver.instance.userId);
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -81,14 +81,14 @@ public class Player : MonoBehaviour
             }
         });
     }
-    private IEnumerator UpdatePlayerActivity()
+    public IEnumerator UpdatePlayerActivity()
     {
         while (true)
         {
-            yield return new WaitForSeconds(10); // Adjust the interval as needed
-
             // Update player's last activity timestamp in the database
             UpdatePlayerLastActivity();
+            yield return new WaitForSeconds(10); // Adjust the interval as needed
+
         }
     }
 
@@ -130,12 +130,14 @@ public class Player : MonoBehaviour
                     // Check if lastActivity exists and is a valid timestamp
                     if (lastActivity != null && long.TryParse(lastActivity.ToString(), out long timestamp))
                     {
-                        // Compare with the current timestamp
-                        long currentTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                        long timeDifference = currentTimestamp - timestamp;
+                        // Convert the timestamp to DateTime
+                        DateTime lastActivityDateTime = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).UtcDateTime;
+
+                        // Calculate the time difference
+                        TimeSpan timeDifference = DateTime.UtcNow - lastActivityDateTime;
 
                         // If the player has been inactive for more than 30 seconds, remove them
-                        if (timeDifference > 30)
+                        if (timeDifference.TotalSeconds > 30)
                         {
                             RemoveInactivePlayer(userId);
                         }
