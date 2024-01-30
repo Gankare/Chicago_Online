@@ -18,7 +18,9 @@ public class WaitingRoomButtons : MonoBehaviour
     public List<TMP_Text> playerNames;
     public List<Image> readyCards;
     public GameObject buttons;
+
     private string previousUserData;
+    private bool readyStatusChanged = false;
 
     private void Start()
     {
@@ -42,17 +44,49 @@ public class WaitingRoomButtons : MonoBehaviour
     {
         var currentUserData = args.Snapshot.Child("userData").GetRawJsonValue();
         var previousReadyValue = JsonUtility.FromJson<UserData>(previousUserData)?.ready ?? false;
-        var currentReadyValue = args.Snapshot.Child("userData").Child("ready").Exists ? args.Snapshot.Child("userData").Child("ready").Value.ToString() : "false";
+        var currentReadyNode = args.Snapshot.Child("userData").Child("ready");
+        var currentReadyValue = currentReadyNode.Exists ? (bool)currentReadyNode.Value : false;
 
-        // Check if userData has changed (excluding lastActivity) or ready status has changed
-        if (!AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity") || previousReadyValue.ToString() != currentReadyValue)
+        bool readyStatusChanged = previousReadyValue != currentReadyValue;
+
+        // Check if the "ready" status has changed or any other relevant fields (excluding lastActivity) have changed
+        if (readyStatusChanged || AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity"))
         {
+            // Set the flag to true if the "ready" status has changed
+            if (readyStatusChanged)
+            {
+                readyStatusChanged = true;
+            }
+
             // Trigger the update method for any changes
             StartCoroutine(UpdatePlayers());
+        }
+        else
+        {
+            // Handle other changes if needed
+            Debug.Log($"Unhandled change in player data: {args.Snapshot.GetRawJsonValue()}");
         }
 
         // Update the previousUserData after handling changes
         previousUserData = currentUserData;
+    }
+
+
+
+    bool HasReadyStatusChanged(string currentReadyValue)
+    {
+        // Check if the ready status has changed
+        var previousReadyValue = JsonUtility.FromJson<UserData>(previousUserData)?.ready.ToString() ?? "false";
+        return currentReadyValue != previousReadyValue;
+    }
+
+
+    bool HasUserDataChanged(string currentUserData, string userId)
+    {
+        // Exclude lastActivity from the comparison
+        var excludedFields = new[] { "lastActivity" };
+        var previousUserDataForUser = userId == null ? null : previousUserData;
+        return !AreJsonFieldsChanged(currentUserData, previousUserDataForUser, excludedFields);
     }
 
     bool AreJsonFieldsChanged(string json1, string json2, params string[] excludedFields)
