@@ -20,18 +20,29 @@ public class WaitingRoomButtons : MonoBehaviour
     public GameObject buttons;
     private bool isUpdatingPlayers = false;
     private string previousUserData;
+    private HashSet<string> currentPlayers = new HashSet<string>();
 
     private void Start()
     {
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded += HandlePlayerAdded;
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved += HandlePlayerRemoved;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
-        StartCoroutine(InitialUpdatePlayers());
+        //StartCoroutine(UpdatePlayers());
     }
 
-    IEnumerator InitialUpdatePlayers()
+    void HandlePlayerAdded(object sender, ChildChangedEventArgs args)
     {
-        yield return new WaitForSeconds(1f); // Add a delay before the initial update
+        var currentUserId = args.Snapshot.Key;
+        currentPlayers.Add(currentUserId);
 
-        // Trigger the initial update method
+        StartCoroutine(UpdatePlayers());
+    }
+
+    void HandlePlayerRemoved(object sender, ChildChangedEventArgs args)
+    {
+        var currentUserId = args.Snapshot.Key;
+        currentPlayers.Remove(currentUserId);
+
         StartCoroutine(UpdatePlayers());
     }
 
@@ -116,6 +127,8 @@ public class WaitingRoomButtons : MonoBehaviour
     }
     void RemovePlayerChangedListener()
     {
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded -= HandlePlayerAdded;
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved -= HandlePlayerRemoved;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged -= HandlePlayerChanged;
     }
     public void Ready()
