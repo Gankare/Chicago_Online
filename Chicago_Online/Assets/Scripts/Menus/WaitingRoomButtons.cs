@@ -27,12 +27,36 @@ public class WaitingRoomButtons : MonoBehaviour
 
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
     {
-        // Check if the coroutine is already running
-        if (!isUpdatingPlayers)
+        // Check if there are changes in fields other than "lastActivity" under the "userData" node
+        var userDataNode = args.Snapshot.Child("userData");
+
+        if (userDataNode != null)
         {
-            StartCoroutine(UpdatePlayers());
+            var userDataChanges = userDataNode.Children
+                .Where(child => child.Key != "lastActivity")
+                .Any(child => child.Value?.ToString() != args.Snapshot.Child("lastActivity")?.Value?.ToString());
+
+            if (userDataChanges)
+            {
+                // Trigger the update method for any changes
+                StartCoroutine(UpdatePlayers());
+            }
+            else
+            {
+                // Handle other changes if needed
+                Debug.Log($"Unhandled change in player data: {args.Snapshot.GetRawJsonValue()}");
+            }
+        }
+        else
+        {
+            Debug.LogError("userDataNode is null. Handle appropriately.");
         }
     }
+
+
+
+
+
     private void OnDisable()
     {
         // Remove the listener when the script is disabled
@@ -89,7 +113,7 @@ public class WaitingRoomButtons : MonoBehaviour
                 string userId = requestSnapshot.Key;
 
                 // Check if the player is ready
-                var isPlayerReady = requestSnapshot.Child("ready").Value;
+                var isPlayerReady = requestSnapshot.Child("userData").Child("ready").Value;
                 if (isPlayerReady != null)
                 {
                     bool readyValue = bool.Parse(isPlayerReady.ToString());

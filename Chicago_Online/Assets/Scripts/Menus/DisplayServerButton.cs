@@ -109,8 +109,8 @@ public class DisplayServerButton : MonoBehaviour
 
             // If the server does not exist, create it
             var setUser = serverReference.Child("players").SetValueAsync(DataSaver.instance.userId);
-            var setUserConnected = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("connected").SetValueAsync(true);
-            var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("ready").SetValueAsync(false);
+            var setUserConnected = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userData").Child("connected").SetValueAsync(true);
+            var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userData").Child("ready").SetValueAsync(false);
             var setGameStarted = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameHasStarted").SetValueAsync(false);
             yield return new WaitUntil(() => setUser.IsCompleted && setUserConnected.IsCompleted && setUserReady.IsCompleted && setGameStarted.IsCompleted);
 

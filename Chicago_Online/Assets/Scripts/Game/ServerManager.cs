@@ -163,8 +163,8 @@ public class ServerManager : MonoBehaviour
 
         if (databaseReference != null)
         {
-            var connectUser = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("connected").SetValueAsync(isConnected);
-            var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("ready").SetValueAsync(false);
+            var connectUser = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("connected").SetValueAsync(isConnected);
+            var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userData").Child("ready").SetValueAsync(false);
             yield return new WaitUntil(() => connectUser.IsCompleted && setUserReady.IsCompleted);
 
             if (!isConnected)
@@ -186,7 +186,7 @@ public class ServerManager : MonoBehaviour
 
         if (databaseReference != null)
         {
-            var setUserReady = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("ready").SetValueAsync(isReady);
+            var setUserReady = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("ready").SetValueAsync(isReady);
             yield return new WaitUntil(() => setUserReady.IsCompleted);
         }
     }
@@ -205,8 +205,8 @@ public class ServerManager : MonoBehaviour
 
             foreach (var playerSnapshot in snapshot.Children)
             {
-                bool isConnected = bool.Parse(playerSnapshot.Child("connected").Value.ToString());
-                bool isReady = bool.Parse(playerSnapshot.Child("ready").Value.ToString());
+                bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
+                bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
 
                 if (isConnected && !isReady)
                 {
@@ -235,7 +235,7 @@ public class ServerManager : MonoBehaviour
             {
                 foreach (var playerSnapshot in snapshot.Children)
                 {
-                    bool isConnected = bool.Parse(playerSnapshot.Child("connected").Value.ToString());
+                    bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
                     if (isConnected)
                     {
                         Debug.Log("player");

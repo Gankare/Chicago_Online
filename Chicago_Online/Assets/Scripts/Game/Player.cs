@@ -98,7 +98,7 @@ public class Player : MonoBehaviour
         var serverReference = DataSaver.instance.dbRef
             .Child("servers").Child(ServerManager.instance.serverId)
             .Child("players").Child(DataSaver.instance.userId)
-            .Child("lastActivity");
+            .Child("userData").Child("lastActivity");
 
         serverReference.SetValueAsync(ServerValue.Timestamp);
     }
