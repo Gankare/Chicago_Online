@@ -45,15 +45,11 @@ public class WaitingRoomButtons : MonoBehaviour
         var currentReadyValue = args.Snapshot.Child("userData").Child("ready").Exists ? args.Snapshot.Child("userData").Child("ready").Value.ToString() : "false";
 
         // Check if userData has changed (excluding lastActivity) or ready status has changed
-        if (!AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity") &&
-            previousReadyValue.ToString() == currentReadyValue)
+        if (!AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity") || previousReadyValue.ToString() != currentReadyValue)
         {
-            // Nothing relevant changed, skip the update
-            return;
+            // Trigger the update method for any changes
+            StartCoroutine(UpdatePlayers());
         }
-
-        // Trigger the update method for any changes
-        StartCoroutine(UpdatePlayers());
 
         // Update the previousUserData after handling changes
         previousUserData = currentUserData;
