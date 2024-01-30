@@ -125,7 +125,7 @@ public class Player : MonoBehaviour
                 foreach (var playerSnapshot in playersSnapshot.Children)
                 {
                     string userId = playerSnapshot.Key;
-                    var lastActivity = playerSnapshot.Child("lastActivity").Value;
+                    var lastActivity = playerSnapshot.Child("userData").Child("lastActivity").Value;
 
                     // Check if lastActivity exists and is a valid timestamp
                     if (lastActivity != null && long.TryParse(lastActivity.ToString(), out long timestamp))

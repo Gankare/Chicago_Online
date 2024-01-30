@@ -9,6 +9,7 @@ using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System.Linq;
 using System.Threading.Tasks;
+using System;
 
 public class WaitingRoomButtons : MonoBehaviour
 {
@@ -18,25 +19,32 @@ public class WaitingRoomButtons : MonoBehaviour
     public List<Image> readyCards;
     public GameObject buttons;
     private bool isUpdatingPlayers = false;
+    private string previousUserData;
 
     private void Start()
     {
-        //UpdatePlayers();
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
+        StartCoroutine(InitialUpdatePlayers());
+    }
+
+    IEnumerator InitialUpdatePlayers()
+    {
+        yield return new WaitForSeconds(1f); // Add a delay before the initial update
+
+        // Trigger the initial update method
+        StartCoroutine(UpdatePlayers());
     }
 
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
     {
-        // Check if there are changes in fields other than "lastActivity" under the "userData" node
-        var userDataNode = args.Snapshot.Child("userData");
+        var currentUserData = args.Snapshot.Child("userData").GetRawJsonValue();
+        var previousReadyValue = JsonUtility.FromJson<UserData>(previousUserData)?.ready ?? false;
+        var currentReadyValue = args.Snapshot.Child("userData").Child("ready").Exists ? args.Snapshot.Child("userData").Child("ready").Value.ToString() : "false";
 
-        if (userDataNode != null)
+        if (previousUserData != null)
         {
-            var userDataChanges = userDataNode.Children
-                .Where(child => child.Key != "lastActivity")
-                .Any(child => child.Value?.ToString() != args.Snapshot.Child("lastActivity")?.Value?.ToString());
-
-            if (userDataChanges)
+            // Check if userData has changed (excluding lastActivity)
+            if (AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity") || previousReadyValue.ToString() != currentReadyValue)
             {
                 // Trigger the update method for any changes
                 StartCoroutine(UpdatePlayers());
@@ -47,15 +55,54 @@ public class WaitingRoomButtons : MonoBehaviour
                 Debug.Log($"Unhandled change in player data: {args.Snapshot.GetRawJsonValue()}");
             }
         }
-        else
-        {
-            Debug.LogError("userDataNode is null. Handle appropriately.");
-        }
+
+        // Update the previousUserData after handling changes
+        previousUserData = currentUserData;
     }
 
+    bool AreJsonFieldsChanged(string json1, string json2, params string[] excludedFields)
+    {
+        var dict1 = JsonUtility.FromJson<Dictionary<string, object>>(json1);
+        var dict2 = JsonUtility.FromJson<Dictionary<string, object>>(json2);
 
+        // Check for null dictionaries
+        if (dict1 == null || dict2 == null)
+        {
+            return dict1 != dict2; // Return true if either dictionary is null
+        }
 
+        // Remove the fields to be excluded from the comparison
+        foreach (var excludedField in excludedFields)
+        {
+            dict1?.Remove(excludedField);
+            dict2?.Remove(excludedField);
+        }
 
+        return !DictionaryEquals(dict1, dict2);
+    }
+
+    bool DictionaryEquals<TKey, TValue>(IDictionary<TKey, TValue> dict1, IDictionary<TKey, TValue> dict2)
+    {
+        if (dict1 == dict2) return true;
+        if (dict1 == null || dict2 == null) return false;
+        if (dict1.Count != dict2.Count) return false;
+
+        foreach (var kvp in dict1)
+        {
+            if (!dict2.TryGetValue(kvp.Key, out var value) || !EqualityComparer<TValue>.Default.Equals(kvp.Value, value))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    [Serializable]
+    public class UserData
+    {
+        public bool ready;
+    }
 
     private void OnDisable()
     {
