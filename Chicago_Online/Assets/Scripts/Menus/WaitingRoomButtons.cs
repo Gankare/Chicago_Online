@@ -18,31 +18,23 @@ public class WaitingRoomButtons : MonoBehaviour
     public List<TMP_Text> playerNames;
     public List<Image> readyCards;
     public GameObject buttons;
-    private bool isUpdatingPlayers = false;
     private string previousUserData;
-    private HashSet<string> currentPlayers = new HashSet<string>();
 
     private void Start()
     {
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded += HandlePlayerAdded;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved += HandlePlayerRemoved;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
-        //StartCoroutine(UpdatePlayers());
+        StartCoroutine(UpdatePlayers());
     }
 
     void HandlePlayerAdded(object sender, ChildChangedEventArgs args)
     {
-        var currentUserId = args.Snapshot.Key;
-        currentPlayers.Add(currentUserId);
-
         StartCoroutine(UpdatePlayers());
     }
 
     void HandlePlayerRemoved(object sender, ChildChangedEventArgs args)
     {
-        var currentUserId = args.Snapshot.Key;
-        currentPlayers.Remove(currentUserId);
-
         StartCoroutine(UpdatePlayers());
     }
 
@@ -52,20 +44,16 @@ public class WaitingRoomButtons : MonoBehaviour
         var previousReadyValue = JsonUtility.FromJson<UserData>(previousUserData)?.ready ?? false;
         var currentReadyValue = args.Snapshot.Child("userData").Child("ready").Exists ? args.Snapshot.Child("userData").Child("ready").Value.ToString() : "false";
 
-        if (previousUserData != null)
+        // Check if userData has changed (excluding lastActivity) or ready status has changed
+        if (!AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity") &&
+            previousReadyValue.ToString() == currentReadyValue)
         {
-            // Check if userData has changed (excluding lastActivity)
-            if (AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity") || previousReadyValue.ToString() != currentReadyValue)
-            {
-                // Trigger the update method for any changes
-                StartCoroutine(UpdatePlayers());
-            }
-            else
-            {
-                // Handle other changes if needed
-                Debug.Log($"Unhandled change in player data: {args.Snapshot.GetRawJsonValue()}");
-            }
+            // Nothing relevant changed, skip the update
+            return;
         }
+
+        // Trigger the update method for any changes
+        StartCoroutine(UpdatePlayers());
 
         // Update the previousUserData after handling changes
         previousUserData = currentUserData;
@@ -143,7 +131,6 @@ public class WaitingRoomButtons : MonoBehaviour
     IEnumerator UpdatePlayers()
     {
         //Reset values
-        isUpdatingPlayers = true;
         int players = 0;
         int playersReady = 0;
 
@@ -202,14 +189,13 @@ public class WaitingRoomButtons : MonoBehaviour
                     }
                 }
 
-                if(requestSnapshot.Key == DataSaver.instance.userId)
+                if (requestSnapshot.Key == DataSaver.instance.userId)
                 {
                     buttons.transform.position = new Vector2(playerObjects[players].transform.position.x, buttons.transform.position.y);
                 }
 
                 players++;
             }
-            isUpdatingPlayers = false;
         }
 
         amountOfPlayersText.text = $"{playersReady}/{players} players ready";
