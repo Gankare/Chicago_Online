@@ -7,8 +7,6 @@ using UnityEngine.UI;
 using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
-using System.Linq;
-using System.Threading.Tasks;
 using System;
 
 public class WaitingRoomButtons : MonoBehaviour
@@ -19,6 +17,7 @@ public class WaitingRoomButtons : MonoBehaviour
     public List<Image> readyCards;
     public GameObject buttons;
 
+    private bool updating = false;
     private string previousUserData;
     private Dictionary<string, bool> previousReadyValues = new Dictionary<string, bool>();
 
@@ -155,6 +154,11 @@ public class WaitingRoomButtons : MonoBehaviour
 
     IEnumerator UpdatePlayers()
     {
+        if (this == null || updating)
+        {
+            yield break;
+        }
+        updating = true;
         //Reset values
         int players = 0;
         int playersReady = 0;
@@ -222,7 +226,7 @@ public class WaitingRoomButtons : MonoBehaviour
                 players++;
             }
         }
-
+        updating = false;
         amountOfPlayersText.text = $"{playersReady}/{players} players ready";
     }
 

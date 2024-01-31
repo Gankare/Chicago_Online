@@ -172,10 +172,10 @@ public class ServerManager : MonoBehaviour
                 var removeUserId = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
                 yield return new WaitUntil(() => removeUserId.IsCompleted);
 
-                if (userId == DataSaver.instance.userId)
+                /*if (userId == DataSaver.instance.userId)
                 {
                     SceneManager.LoadScene("ServerScene");
-                }
+                }*/
             }
         }
     }
@@ -208,7 +208,7 @@ public class ServerManager : MonoBehaviour
                 bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
                 bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
 
-                if (isConnected && !isReady)
+                if (isConnected && !isReady || !isConnected)
                 {
                     allPlayersReady = false;
                     break;

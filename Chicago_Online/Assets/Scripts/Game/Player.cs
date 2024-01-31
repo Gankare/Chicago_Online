@@ -35,6 +35,7 @@ public class Player : MonoBehaviour
     private void OnDestroy()
     {
         ServerManager.instance.PlayerDisconnected(DataSaver.instance.userId);
+        SceneManager.sceneLoaded -= OnSceneLoaded;
     } 
     private void OnDisable()
     {
