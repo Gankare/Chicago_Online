@@ -92,16 +92,35 @@ public class Player : MonoBehaviour
 
         }
     }
-
     private void UpdatePlayerLastActivity()
     {
-        // Update the last activity timestamp in the database
-        var serverReference = DataSaver.instance.dbRef
-            .Child("servers").Child(ServerManager.instance.serverId)
-            .Child("players").Child(DataSaver.instance.userId)
-            .Child("userData").Child("lastActivity");
+        if (this == null)
+        {
+            return;
+        }
 
-        serverReference.SetValueAsync(ServerValue.Timestamp);
+        var userId = DataSaver.instance.userId;
+        var serverId = ServerManager.instance.serverId;
+
+        if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(serverId))
+        {
+            // Check if the player exists in the server
+            var playerReference = DataSaver.instance.dbRef
+                .Child("servers").Child(serverId)
+                .Child("players").Child(userId);
+
+            playerReference.GetValueAsync().ContinueWith(task =>
+            {
+                if (task.IsCompleted && task.Result.Exists)
+                {
+                    // Player exists, update the last activity timestamp in the database
+                    var serverReference = playerReference
+                        .Child("userData").Child("lastActivity");
+
+                    serverReference.SetValueAsync(ServerValue.Timestamp);
+                }
+            });
+        }
     }
     private IEnumerator CheckActivityCoroutine()
     {

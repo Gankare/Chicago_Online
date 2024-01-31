@@ -165,7 +165,10 @@ public class ServerManager : MonoBehaviour
         {
             var connectUser = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("connected").SetValueAsync(isConnected);
             var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userData").Child("ready").SetValueAsync(false);
-            yield return new WaitUntil(() => connectUser.IsCompleted && setUserReady.IsCompleted);
+            var setTimeStamp = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").Child
+                (DataSaver.instance.userId).Child("userData").Child("lastActivity").SetValueAsync(ServerValue.Timestamp); 
+
+            yield return new WaitUntil(() => connectUser.IsCompleted && setUserReady.IsCompleted && setTimeStamp.IsCompleted);
 
             if (!isConnected)
             {
