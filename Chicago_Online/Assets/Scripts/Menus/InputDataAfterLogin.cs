@@ -32,7 +32,7 @@ public class InputDataAfterLogin : MonoBehaviour
     private void Start()
     {
         DataSaver.instance.LoadData();
-        ShowPlayerProfile();
+        Invoke(nameof(ShowPlayerProfile), 1);
     }
     public void ShowPlayerProfile()
     {

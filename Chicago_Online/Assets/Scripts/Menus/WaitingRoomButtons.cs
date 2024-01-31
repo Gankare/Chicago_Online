@@ -26,24 +26,30 @@ public class WaitingRoomButtons : MonoBehaviour
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded += HandlePlayerAdded;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved += HandlePlayerRemoved;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        StartCoroutine(initLoadPlayers());
+    }
+    IEnumerator initLoadPlayers()
+    {
+        yield return new WaitForSeconds(1);
         StartCoroutine(UpdatePlayers());
+    }
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "MenuScene" || scene.name == "ServerScene")
+        {
+            Destroy(gameObject);
+        }
     }
 
     void HandlePlayerAdded(object sender, ChildChangedEventArgs args)
     {
-        if (this == null)
-        {
-            return;
-        }
         StartCoroutine(UpdatePlayers());
     }
 
     void HandlePlayerRemoved(object sender, ChildChangedEventArgs args)
     {
-        if (this == null)
-        {
-            return;
-        }
+        if (this != null)
         StartCoroutine(UpdatePlayers());
     }
 
@@ -58,7 +64,8 @@ public class WaitingRoomButtons : MonoBehaviour
         if (HasReadyStatusChanged(currentUserId, currentReadyValue))
         {
             // Trigger the update method for any changes in ready status
-            StartCoroutine(UpdatePlayers());
+            if (this != null)
+                StartCoroutine(UpdatePlayers());
         }
         else if (AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity"))
         {
@@ -139,11 +146,13 @@ public class WaitingRoomButtons : MonoBehaviour
     {
         // Remove the listener when the script is disabled
         RemovePlayerChangedListener();
+        SceneManager.sceneLoaded -= OnSceneLoaded;
     }
     private void OnDestroy()
     {
         // Remove the listener when the object is destroyed
         RemovePlayerChangedListener();
+        SceneManager.sceneLoaded -= OnSceneLoaded;
     }
     void RemovePlayerChangedListener()
     {
@@ -162,7 +171,7 @@ public class WaitingRoomButtons : MonoBehaviour
 
     IEnumerator UpdatePlayers()
     {
-        if (this == null || updating)
+        if (updating)
         {
             yield break;
         }

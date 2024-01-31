@@ -32,6 +32,11 @@ public class Player : MonoBehaviour
         CheckIfUserExistsInServer(DataSaver.instance.userId);
         StartCoroutine(CheckActivityCoroutine());
     }
+    private void OnEnable()
+    {
+        ServerManager.instance.PlayerConnected(DataSaver.instance.userId);
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
     private void OnDestroy()
     {
         ServerManager.instance.PlayerDisconnected(DataSaver.instance.userId);
@@ -41,11 +46,6 @@ public class Player : MonoBehaviour
     {
         ServerManager.instance.PlayerDisconnected(DataSaver.instance.userId);
         SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
-    private void OnEnable()
-    {
-        ServerManager.instance.PlayerConnected(DataSaver.instance.userId);
-        SceneManager.sceneLoaded += OnSceneLoaded;
     }
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
@@ -116,7 +116,7 @@ public class Player : MonoBehaviour
                     // Player exists, update the last activity timestamp in the database
                     var serverReference = playerReference
                         .Child("userData").Child("lastActivity");
-
+                    Debug.Log("updating Activity");
                     serverReference.SetValueAsync(ServerValue.Timestamp);
                 }
             });
