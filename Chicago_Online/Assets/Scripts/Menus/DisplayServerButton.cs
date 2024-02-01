@@ -23,11 +23,6 @@ public class DisplayServerButton : MonoBehaviour
 
         // Listen for changes in the server's players
         DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").ChildChanged += HandlePlayerChanged;
-
-        //Timer so that serverid loads in before function
-
-        // Start counting players
-        StartCoroutine(CountPlayers());
         Invoke(nameof(UpdatePlayers), 1f);
     }
     private void OnDisable()
