@@ -11,11 +11,10 @@ using UnityEngine.UI;
 public class FriendButton : MonoBehaviour
 {
     public string friendId;
+    public string friendServerId;
     public TMP_Text friendName;
     public Image friendStatusImage;
     public Button joinButton;
-
-    private string friendServerId;
 
     void Start()
     {
@@ -62,7 +61,8 @@ public class FriendButton : MonoBehaviour
                             // Friend is in a server, update color to yellow
                             joinButton.enabled = true;
                             friendStatusImage.color = Color.yellow;
-                            friendServerId = serverNode.ToString();
+                            friendServerId = serverNode.Key;
+                            Debug.Log(friendServerId);
                             break; // Exit the loop since we found the server
                         }
                     }
@@ -90,6 +90,7 @@ public class FriendButton : MonoBehaviour
 
     public void JoinServer()
     {
+        ServerManager.instance.serverId = friendServerId;
         SceneManager.LoadScene(friendServerId + "WaitingRoom");
     }
 
