@@ -36,4 +36,12 @@ public class SceneHandler : MonoBehaviour
     {
         SceneManager.LoadSceneAsync("MenuScene");
     }
+    public void QuitGame()
+    {
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif
+    }
 }
