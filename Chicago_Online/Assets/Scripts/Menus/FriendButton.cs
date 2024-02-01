@@ -12,6 +12,10 @@ public class FriendButton : MonoBehaviour
     public string friendId;
     public TMP_Text friendName;
     public Image friendStatusImage;
+    public Button joinButton;
+
+    private string friendServerId;
+
     void Start()
     {
         StartCoroutine(UpdateFriendStatus());
@@ -40,13 +44,17 @@ public class FriendButton : MonoBehaviour
                     if (!string.IsNullOrEmpty(serverId))
                     {
                         // Friend is in a server, update color to yellow
+                        joinButton.enabled = true;
                         friendStatusImage.color = Color.yellow;
+                        friendServerId = serverNode.ToString();
                         break; // Exit the loop since we found the server
                     }
                     else
                     {
                         // Friend is not in this server, update color to blue
+                        joinButton.enabled = false;
                         friendStatusImage.color = Color.blue;
+                        friendServerId = null;
                     }
                 }
             }
@@ -54,12 +62,55 @@ public class FriendButton : MonoBehaviour
             {
                 // No servers found, update color to default color (or handle as needed)
                 friendStatusImage.color = Color.white;
+                friendServerId = null;
             }
 
             // Wait for a specific time before checking again
-            yield return new WaitForSeconds(10f); // You can adjust the interval as needed
+            yield return new WaitForSeconds(5f); // You can adjust the interval as needed
         }
     }
+    public void JoinServer()
+    {
+        // Check if the friend is in a server
+        if (!string.IsNullOrEmpty(friendServerId))
+        {
+            // Fetch the gameHasStarted value
+            var serverRef = DataSaver.instance.dbRef.Child("servers").Child(friendServerId);
+            var gameHasStartedTask = serverRef.Child("gameHasStarted").GetValueAsync();
+
+            // Wait until the task is completed
+            gameHasStartedTask.ContinueWithOnMainThread(task =>
+            {
+                if (task.IsFaulted || task.IsCanceled)
+                {
+                    Debug.LogError($"Error fetching gameHasStarted: {task.Exception}");
+                    return;
+                }
+
+                DataSnapshot snapshot = task.Result;
+                bool gameHasStarted = snapshot.Exists && snapshot.Value is bool && (bool)snapshot.Value;
+
+                // Check the gameHasStarted value
+                if (gameHasStarted)
+                {
+                    // Game has already started
+                    Debug.Log($"Server (ID: {friendServerId}) has already started. Server is now active.");
+                }
+                else
+                {
+                    // Game has not started, you can implement the join server functionality
+                    Debug.Log($"Joining server: (ID: {friendServerId})");
+
+                }
+            });
+        }
+        else
+        {
+            // Friend is not in a server
+            Debug.Log("Friend is not in a server.");
+        }
+    }
+
 
     public void Remove()
     {
