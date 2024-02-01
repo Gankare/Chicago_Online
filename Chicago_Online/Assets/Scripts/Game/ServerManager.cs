@@ -27,26 +27,11 @@ public class ServerManager : MonoBehaviour
     }
     #endregion
 
-    DatabaseReference databaseReference;
     public string serverId;
 
     void Start()
     {
         DontDestroyOnLoad(gameObject);
-
-        FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
-        {
-            FirebaseApp app = FirebaseApp.DefaultInstance;
-            if (app != null)
-            {
-                databaseReference = FirebaseDatabase.DefaultInstance.RootReference;
-                Debug.Log("Firebase initialization successful.");
-            }
-            else
-            {
-                Debug.LogError("Firebase initialization failed.");
-            }
-        });
         StartCoroutine(CheckAndRemoveUserFromServer(DataSaver.instance.userId));
     }
     private void OnEnable()
@@ -76,11 +61,10 @@ public class ServerManager : MonoBehaviour
         StartCoroutine(UpdatePlayerStatus(userId, false));
     }
 
-    public void PlayerReadyStatus(string userId, bool isReady)
+    public IEnumerator PlayerReadyStatus(string userId, bool isReady)
     {
-        StartCoroutine(UpdatePlayerReadyStatus(userId, isReady));
+        yield return StartCoroutine(UpdatePlayerReadyStatus(userId, isReady));
 
-        // Check if all players are ready
         CheckAllPlayersReady();
     }
 
@@ -144,7 +128,7 @@ public class ServerManager : MonoBehaviour
     IEnumerator RemoveUserFromServer(string userId, string serverId)
     {
         // Remove the user from the server
-        var removeUserTask = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
+        var removeUserTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
         yield return new WaitUntil(() => removeUserTask.IsCompleted);
 
         if (removeUserTask.Exception != null)
@@ -161,9 +145,9 @@ public class ServerManager : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
 
-        if (databaseReference != null)
+        if (DataSaver.instance.dbRef != null)
         {
-            var connectUser = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("connected").SetValueAsync(isConnected);
+            var connectUser = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("connected").SetValueAsync(isConnected);
             var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userData").Child("ready").SetValueAsync(false);
             var setTimeStamp = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").Child
                 (DataSaver.instance.userId).Child("userData").Child("lastActivity").SetValueAsync(ServerValue.Timestamp); 
@@ -172,7 +156,7 @@ public class ServerManager : MonoBehaviour
 
             if (!isConnected)
             {
-                var removeUserId = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
+                var removeUserId = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
                 yield return new WaitUntil(() => removeUserId.IsCompleted);
 
                 if (userId == DataSaver.instance.userId)
@@ -187,16 +171,16 @@ public class ServerManager : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
 
-        if (databaseReference != null)
+        if (DataSaver.instance.dbRef != null)
         {
-            var setUserReady = databaseReference.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("ready").SetValueAsync(isReady);
+            var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("ready").SetValueAsync(isReady);
             yield return new WaitUntil(() => setUserReady.IsCompleted);
         }
     }
 
     public IEnumerator CheckAllPlayersReady()
     {
-        var playersInServer = databaseReference.Child("servers").Child(serverId).Child("players").GetValueAsync();
+        var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
 
         yield return new WaitUntil(() => playersInServer.IsCompleted);
 
@@ -228,7 +212,7 @@ public class ServerManager : MonoBehaviour
     public void GetPlayerCount(System.Action<int> callback, string serverid)
     {
         int count = 0;
-        var playersInServer = databaseReference.Child("servers").Child(serverid).Child("players").GetValueAsync();
+        var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(serverid).Child("players").GetValueAsync();
 
         playersInServer.ContinueWithOnMainThread(task =>
         {
@@ -253,7 +237,7 @@ public class ServerManager : MonoBehaviour
     }
     public async void GetGameStartedFlag(System.Action<bool> callback, string serverid)
     {
-        var serverReference = databaseReference.Child("servers").Child(serverid);
+        var serverReference = DataSaver.instance.dbRef.Child("servers").Child(serverid);
 
         try
         {
@@ -295,9 +279,9 @@ public class ServerManager : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
 
-        if (databaseReference != null)
+        if (DataSaver.instance.dbRef != null)
         {
-            var setGameStarted = databaseReference.Child("servers").Child(serverId).Child("gameHasStarted").SetValueAsync(true);
+            var setGameStarted = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameHasStarted").SetValueAsync(true);
             yield return new WaitUntil(() => setGameStarted.IsCompleted);
             SceneManager.LoadScene(serverId);
         }

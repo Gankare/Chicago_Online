@@ -65,7 +65,10 @@ public class WaitingRoomButtons : MonoBehaviour
         {
             // Trigger the update method for any changes in ready status
             if (this != null)
+            {
                 StartCoroutine(UpdatePlayers());
+                ServerManager.instance.CheckAllPlayersReady();
+            }
         }
         else if (AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity"))
         {
@@ -162,11 +165,11 @@ public class WaitingRoomButtons : MonoBehaviour
     }
     public void Ready()
     {
-        ServerManager.instance.PlayerReadyStatus(DataSaver.instance.userId, true);
+        StartCoroutine(ServerManager.instance.PlayerReadyStatus(DataSaver.instance.userId, true));
     }
     public void Unready()
     {
-        ServerManager.instance.PlayerReadyStatus(DataSaver.instance.userId, false);
+        StartCoroutine(ServerManager.instance.PlayerReadyStatus(DataSaver.instance.userId, false));
     }
 
     IEnumerator UpdatePlayers()
