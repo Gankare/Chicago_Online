@@ -28,7 +28,7 @@ public class DisplayServerButton : MonoBehaviour
 
         // Start counting players
         StartCoroutine(CountPlayers());
-        Invoke(nameof(UpdatePlayers), 0.5f);
+        Invoke(nameof(UpdatePlayers), 1f);
     }
     private void OnDisable()
     {
