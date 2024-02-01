@@ -1851,7 +1851,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   buttonText: {fileID: 1270744900}
-  waitingRoomId: WaitingRoom1
+  waitingRoomId: Server1WaitingRoom
   serverId: Server1
 --- !u!1 &521378802
 GameObject:
@@ -2242,7 +2242,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   buttonText: {fileID: 1433393377}
-  waitingRoomId: WaitingRoom2
+  waitingRoomId: Server2WaitingRoom
   serverId: Server2
 --- !u!1 &886522552
 GameObject:

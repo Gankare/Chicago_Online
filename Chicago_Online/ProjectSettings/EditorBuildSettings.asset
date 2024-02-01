@@ -12,7 +12,7 @@ EditorBuildSettings:
     path: Assets/Scenes/ServerScene.unity
     guid: d95619b38f9c0fa4b9e5080be5513623
   - enabled: 1
-    path: Assets/Scenes/Server1/WaitingRoom1.unity
+    path: Assets/Scenes/Server1/Server1WaitingRoom.unity
     guid: d6a8f7e71c066bf44918598269c08047
   - enabled: 1
     path: Assets/Scenes/Server1/Server1.unity
@@ -21,6 +21,6 @@ EditorBuildSettings:
     path: Assets/Scenes/Server2/Server2.unity
     guid: 8211aa65b847f68449a2db2c70be9863
   - enabled: 1
-    path: Assets/Scenes/Server2/WaitingRoom2.unity
+    path: Assets/Scenes/Server2/Server2WaitingRoom.unity
     guid: 35dbd3ed538846041b3d694fddb9b671
   m_configObjects: {}

@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class FriendButton : MonoBehaviour
@@ -43,11 +44,27 @@ public class FriendButton : MonoBehaviour
 
                     if (!string.IsNullOrEmpty(serverId))
                     {
-                        // Friend is in a server, update color to yellow
-                        joinButton.enabled = true;
-                        friendStatusImage.color = Color.yellow;
-                        friendServerId = serverNode.ToString();
-                        break; // Exit the loop since we found the server
+                        // Check if the game has started
+                        var gameHasStarted = serverNode.Child("gameHasStarted").Exists && (bool)serverNode.Child("gameHasStarted").Value;
+
+                        // Check if there are fewer than 4 players in the server
+                        var playerCount = serverNode.Child("players").ChildrenCount;
+
+                        if (gameHasStarted || playerCount >= 4)
+                        {
+                            // Game has started or there are 4 or more players, update color to blue
+                            joinButton.enabled = false;
+                            friendStatusImage.color = Color.blue;
+                            friendServerId = null;
+                        }
+                        else
+                        {
+                            // Friend is in a server, update color to yellow
+                            joinButton.enabled = true;
+                            friendStatusImage.color = Color.yellow;
+                            friendServerId = serverNode.ToString();
+                            break; // Exit the loop since we found the server
+                        }
                     }
                     else
                     {
@@ -61,6 +78,7 @@ public class FriendButton : MonoBehaviour
             else
             {
                 // No servers found, update color to default color (or handle as needed)
+                joinButton.enabled = false;
                 friendStatusImage.color = Color.white;
                 friendServerId = null;
             }
@@ -69,48 +87,11 @@ public class FriendButton : MonoBehaviour
             yield return new WaitForSeconds(5f); // You can adjust the interval as needed
         }
     }
+
     public void JoinServer()
     {
-        // Check if the friend is in a server
-        if (!string.IsNullOrEmpty(friendServerId))
-        {
-            // Fetch the gameHasStarted value
-            var serverRef = DataSaver.instance.dbRef.Child("servers").Child(friendServerId);
-            var gameHasStartedTask = serverRef.Child("gameHasStarted").GetValueAsync();
-
-            // Wait until the task is completed
-            gameHasStartedTask.ContinueWithOnMainThread(task =>
-            {
-                if (task.IsFaulted || task.IsCanceled)
-                {
-                    Debug.LogError($"Error fetching gameHasStarted: {task.Exception}");
-                    return;
-                }
-
-                DataSnapshot snapshot = task.Result;
-                bool gameHasStarted = snapshot.Exists && snapshot.Value is bool && (bool)snapshot.Value;
-
-                // Check the gameHasStarted value
-                if (gameHasStarted)
-                {
-                    // Game has already started
-                    Debug.Log($"Server (ID: {friendServerId}) has already started. Server is now active.");
-                }
-                else
-                {
-                    // Game has not started, you can implement the join server functionality
-                    Debug.Log($"Joining server: (ID: {friendServerId})");
-
-                }
-            });
-        }
-        else
-        {
-            // Friend is not in a server
-            Debug.Log("Friend is not in a server.");
-        }
+        SceneManager.LoadScene(friendServerId + "WaitingRoom");
     }
-
 
     public void Remove()
     {
