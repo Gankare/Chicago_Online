@@ -8,6 +8,7 @@ using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System;
+using Unity.VisualScripting;
 
 public class WaitingRoomButtons : MonoBehaviour
 {
@@ -263,16 +264,19 @@ public class WaitingRoomButtons : MonoBehaviour
     public IEnumerator CountDownBeforeStart()
     {
         countDownActive = true;
-        while(countDownActive)
+
+        for (int i = 3; i > -1 && countDownActive; i--)
         {
-            countDownText.text = "3";
+            countDownText.text = i.ToString();
             yield return new WaitForSeconds(1);
-            countDownText.text = "2";
-            yield return new WaitForSeconds(1);
-            countDownText.text = "1";
-            yield return new WaitForSeconds(1);
-            StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
+            if (i == 0 && countDownActive)
+                StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
         }
-        countDownText.text = "";
+        if (!countDownActive)
+        { 
+            countDownText.text = "";
+            Debug.Log("Countdown stopped.");
+            yield break;
+        }
     }
 }

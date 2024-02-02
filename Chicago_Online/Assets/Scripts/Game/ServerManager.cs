@@ -28,7 +28,6 @@ public class ServerManager : MonoBehaviour
     #endregion
 
     public string serverId;
-
     void Start()
     {
         DontDestroyOnLoad(gameObject);
@@ -181,8 +180,8 @@ public class ServerManager : MonoBehaviour
 
             if (!isReady)
             {
-                WaitingRoomButtons waitingroom = FindObjectOfType<WaitingRoomButtons>();
-                waitingroom.countDownActive = false;
+                WaitingRoomButtons waitingRoom = FindObjectOfType<WaitingRoomButtons>();
+                waitingRoom.countDownActive = false;
             }
         }
     }
@@ -253,9 +252,9 @@ public class ServerManager : MonoBehaviour
 
         DataSnapshot snapshot = playersInServer.Result;
 
-        if (snapshot.Exists)
+        if (snapshot.Exists && snapshot.ChildrenCount > 1)
         {
-            WaitingRoomButtons waitingroom = FindObjectOfType<WaitingRoomButtons>();
+            WaitingRoomButtons waitingRoom = FindObjectOfType<WaitingRoomButtons>();
             bool allPlayersReady = true;
 
             foreach (var playerSnapshot in snapshot.Children)
@@ -265,7 +264,7 @@ public class ServerManager : MonoBehaviour
 
                 if (isConnected && !isReady || !isConnected)
                 {
-                    waitingroom.countDownActive = false;
+                    waitingRoom.countDownActive = false;
                     allPlayersReady = false;
                     break;
                 }
@@ -273,15 +272,13 @@ public class ServerManager : MonoBehaviour
 
             if (allPlayersReady)
             {
-                Debug.Log("All players ready");
-                waitingroom.CountDownBeforeStart();
+                StartCoroutine(waitingRoom.CountDownBeforeStart());
             }
-            yield return allPlayersReady;
         }
         else
         {
             // No players in the server, handle as needed (e.g., wait for players to join)
-            Debug.Log("No players in the server");
+            Debug.Log("Not enough players to start");
         } 
     }
 
