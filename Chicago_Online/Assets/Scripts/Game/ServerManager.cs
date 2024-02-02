@@ -64,8 +64,11 @@ public class ServerManager : MonoBehaviour
     public IEnumerator PlayerReadyStatus(string userId, bool isReady)
     {
         yield return StartCoroutine(UpdatePlayerReadyStatus(userId, isReady));
-
-        CheckAllPlayersReady();
+       
+        if(isReady)
+        {
+            StartCoroutine(CheckAllPlayersReady());
+        }
     }
 
     IEnumerator CheckAndRemoveUserFromServer(string userId)
@@ -204,8 +207,14 @@ public class ServerManager : MonoBehaviour
 
             if (allPlayersReady)
             {
-                StartGame();
+                Debug.Log("All players ready");
+                StartCoroutine(SetGameStartedFlagCoroutine());
             }
+        }
+        else
+        {
+            // No players in the server, handle as needed (e.g., wait for players to join)
+            Debug.Log("No players in the server");
         }
     }
 
@@ -225,7 +234,6 @@ public class ServerManager : MonoBehaviour
                     bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
                     if (isConnected)
                     {
-                        Debug.Log("player");
                         count++;
                     }
                 }
@@ -267,12 +275,6 @@ public class ServerManager : MonoBehaviour
             Debug.LogError($"Error getting gameHasStarted flag. Error: {ex}");
             callback.Invoke(false);
         }
-    }
-
-    void StartGame()
-    {
-        //Set the gamehasstarted in database to true here
-        StartCoroutine(SetGameStartedFlagCoroutine());
     }
 
     IEnumerator SetGameStartedFlagCoroutine()
