@@ -178,43 +178,12 @@ public class ServerManager : MonoBehaviour
         {
             var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("ready").SetValueAsync(isReady);
             yield return new WaitUntil(() => setUserReady.IsCompleted);
-        }
-    }
 
-    public IEnumerator CheckAllPlayersReady()
-    {
-        var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
-
-        yield return new WaitUntil(() => playersInServer.IsCompleted);
-
-        DataSnapshot snapshot = playersInServer.Result;
-
-        if (snapshot.Exists)
-        {
-            bool allPlayersReady = true;
-
-            foreach (var playerSnapshot in snapshot.Children)
+            if (!isReady)
             {
-                bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
-                bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
-
-                if (isConnected && !isReady || !isConnected)
-                {
-                    allPlayersReady = false;
-                    break;
-                }
+                WaitingRoomButtons waitingroom = FindObjectOfType<WaitingRoomButtons>();
+                waitingroom.countDownActive = false;
             }
-
-            if (allPlayersReady)
-            {
-                Debug.Log("All players ready");
-                StartCoroutine(SetGameStartedFlagCoroutine());
-            }
-        }
-        else
-        {
-            // No players in the server, handle as needed (e.g., wait for players to join)
-            Debug.Log("No players in the server");
         }
     }
 
@@ -276,8 +245,47 @@ public class ServerManager : MonoBehaviour
             callback.Invoke(false);
         }
     }
+    public IEnumerator CheckAllPlayersReady()
+    {
+        var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
 
-    IEnumerator SetGameStartedFlagCoroutine()
+        yield return new WaitUntil(() => playersInServer.IsCompleted);
+
+        DataSnapshot snapshot = playersInServer.Result;
+
+        if (snapshot.Exists)
+        {
+            WaitingRoomButtons waitingroom = FindObjectOfType<WaitingRoomButtons>();
+            bool allPlayersReady = true;
+
+            foreach (var playerSnapshot in snapshot.Children)
+            {
+                bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
+                bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
+
+                if (isConnected && !isReady || !isConnected)
+                {
+                    waitingroom.countDownActive = false;
+                    allPlayersReady = false;
+                    break;
+                }
+            }
+
+            if (allPlayersReady)
+            {
+                Debug.Log("All players ready");
+                waitingroom.CountDownBeforeStart();
+            }
+            yield return allPlayersReady;
+        }
+        else
+        {
+            // No players in the server, handle as needed (e.g., wait for players to join)
+            Debug.Log("No players in the server");
+        } 
+    }
+
+    public IEnumerator SetGameStartedFlagCoroutine()
     {
         yield return new WaitForEndOfFrame();
 

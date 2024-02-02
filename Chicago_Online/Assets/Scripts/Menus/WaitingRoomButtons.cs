@@ -12,10 +12,12 @@ using System;
 public class WaitingRoomButtons : MonoBehaviour
 {
     public TMP_Text amountOfPlayersText;
+    public TMP_Text countDownText;
     public List<GameObject> playerObjects;
     public List<TMP_Text> playerNames;
     public List<Image> readyCards;
     public GameObject buttons;
+    public bool countDownActive = false;
 
     private bool updating = false;
     private string previousUserData;
@@ -45,12 +47,16 @@ public class WaitingRoomButtons : MonoBehaviour
     void HandlePlayerAdded(object sender, ChildChangedEventArgs args)
     {
         StartCoroutine(UpdatePlayers());
+        countDownActive = false;
     }
 
     void HandlePlayerRemoved(object sender, ChildChangedEventArgs args)
     {
         if (this != null)
-        StartCoroutine(UpdatePlayers());
+        {
+            StartCoroutine(UpdatePlayers());
+            countDownActive = false;
+        }
     }
 
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
@@ -253,5 +259,20 @@ public class WaitingRoomButtons : MonoBehaviour
     public void LeaveServer()
     {
         SceneManager.LoadScene("ServerScene");
+    }
+    public IEnumerator CountDownBeforeStart()
+    {
+        countDownActive = true;
+        while(countDownActive)
+        {
+            countDownText.text = "3";
+            yield return new WaitForSeconds(1);
+            countDownText.text = "2";
+            yield return new WaitForSeconds(1);
+            countDownText.text = "1";
+            yield return new WaitForSeconds(1);
+            StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
+        }
+        countDownText.text = "";
     }
 }
