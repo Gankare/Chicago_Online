@@ -76,8 +76,6 @@ public class DataSaver : MonoBehaviour
 
             // Save data after loading
             SaveData();
-            //if(SceneManager.GetActiveScene().name == "ServerScene")
-            //InputDataAfterLogin.instance.ShowPlayerProfile();
         }
         else
         {
