@@ -31,8 +31,10 @@ public class CardScriptableObject : ScriptableObject
     public CardHierarchy cardNumber;
     public int power;
     public Sprite cardSprite;
+    public string cardId;
     public void Awake()
     {
         power = (int)cardNumber;
+        cardId = cardSuit.ToString() + cardNumber.ToString();
     }
 }
