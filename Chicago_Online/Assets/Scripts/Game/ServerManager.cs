@@ -57,6 +57,8 @@ public class ServerManager : MonoBehaviour
 
     public void PlayerDisconnected(string userId)
     {
+        if (this == null)
+            return;
         StartCoroutine(UpdatePlayerStatus(userId, false));
     }
 
