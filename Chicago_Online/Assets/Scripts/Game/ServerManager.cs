@@ -149,12 +149,13 @@ public class ServerManager : MonoBehaviour
 
         if (DataSaver.instance.dbRef != null)
         {
+            var setCountdownStartFlagTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("countdownStartFlag").SetValueAsync(false);
             var connectUser = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("connected").SetValueAsync(isConnected);
             var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userData").Child("ready").SetValueAsync(false);
             var setTimeStamp = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").Child
                 (DataSaver.instance.userId).Child("userData").Child("lastActivity").SetValueAsync(ServerValue.Timestamp); 
 
-            yield return new WaitUntil(() => connectUser.IsCompleted && setUserReady.IsCompleted && setTimeStamp.IsCompleted);
+            yield return new WaitUntil(() => connectUser.IsCompleted && setUserReady.IsCompleted && setTimeStamp.IsCompleted && setCountdownStartFlagTask.IsCompleted);
 
             if (!isConnected)
             {
@@ -180,11 +181,13 @@ public class ServerManager : MonoBehaviour
 
             if (!isReady)
             {
-                WaitingRoomButtons waitingRoom = FindObjectOfType<WaitingRoomButtons>();
-                waitingRoom.countDownActive = false;
+                // Clear the countdown start flag if any player becomes unready
+                var countdownStartFlagTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("countdownStartFlag").SetValueAsync(false);
+                yield return new WaitUntil(() => countdownStartFlagTask.IsCompleted);
             }
         }
     }
+
 
     public void GetPlayerCount(System.Action<int> callback, string serverid)
     {
@@ -246,65 +249,56 @@ public class ServerManager : MonoBehaviour
     }
     public IEnumerator CheckAllPlayersReady()
     {
-        var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
-
-        yield return new WaitUntil(() => playersInServer.IsCompleted);
-
-        DataSnapshot snapshot = playersInServer.Result;
-
-        if (snapshot.Exists && snapshot.ChildrenCount > 1)
+        while (true)
         {
-            bool allPlayersReady = true;
+            var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
+            yield return new WaitUntil(() => playersInServer.IsCompleted);
 
-            foreach (var playerSnapshot in snapshot.Children)
+            DataSnapshot snapshot = playersInServer.Result;
+
+            if (snapshot.Exists && snapshot.ChildrenCount > 1)
             {
-                bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
-                bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
+                bool allPlayersReady = true;
 
-                if (isConnected && !isReady)
-                {
-                    allPlayersReady = false;
-                    break;
-                }
-            }
-
-            if (allPlayersReady)
-            {
                 foreach (var playerSnapshot in snapshot.Children)
                 {
                     bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
                     bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
 
-                    if (isConnected && isReady)
+                    if (isConnected && !isReady)
                     {
-                        string playerId = playerSnapshot.Key;
-                        StartCoroutine(StartCountdownForPlayer(playerId));
+                        allPlayersReady = false;
+                        break;
                     }
                 }
+
+                if (allPlayersReady)
+                {
+                    // Set a flag in the database to indicate that the countdown should start
+                    var countdownStartFlagTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("countdownStartFlag").SetValueAsync(true);
+                    yield return new WaitUntil(() => countdownStartFlagTask.IsCompleted);
+
+                    // Start the countdown on the local client
+                    if (countdownStartFlagTask.Exception == null)
+                    {
+                        WaitingRoomButtons waitingRoom = FindObjectOfType<WaitingRoomButtons>();
+                        StartCoroutine(waitingRoom.CountDownBeforeStart());
+                    }
+
+                    // Break out of the loop since all players are ready
+                    break;
+                }
             }
-        }
-        else
-        {
-            // No players in the server, handle as needed (e.g., wait for players to join)
-            Debug.Log("Not enough players to start");
-        }
-    }
+            else
+            {
+                // Not enough players in the server, handle as needed (e.g., wait for players to join)
+                Debug.Log("Not enough players to start");
+            }
 
-    IEnumerator StartCountdownForPlayer(string playerId)
-    {
-        WaitingRoomButtons waitingRoom = FindObjectOfType<WaitingRoomButtons>();
-        var userReference = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(playerId);
-
-        var countdownTask = userReference.Child("userData").Child("countdownStarted").SetValueAsync(true);
-        yield return new WaitUntil(() => countdownTask.IsCompleted);
-
-        // Start the countdown on the player's side
-        if (countdownTask.Exception == null)
-        {
-            StartCoroutine(waitingRoom.CountDownBeforeStart());
+            // Wait for 1 second before checking again
+            yield return new WaitForSeconds(1);
         }
     }
-
 
     public IEnumerator SetGameStartedFlagCoroutine()
     {

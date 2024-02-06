@@ -8,7 +8,6 @@ using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System;
-using Unity.VisualScripting;
 
 public class WaitingRoomButtons : MonoBehaviour
 {
@@ -26,29 +25,46 @@ public class WaitingRoomButtons : MonoBehaviour
 
     private void Start()
     {
-        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync().ContinueWithOnMainThread(task =>
-        {
-            if (task.IsCompleted && !task.IsFaulted)
-            {
-                DataSnapshot playersSnapshot = task.Result;
-                foreach (var playerSnapshot in playersSnapshot.Children)
-                {
-                    var userDataSnapshot = playerSnapshot.Child("userData");
-                    var userId = playerSnapshot.Key;
-                    if (userDataSnapshot.Exists)
-                    {
-                        var readyValue = userDataSnapshot.Child("ready").Exists ? (bool)userDataSnapshot.Child("ready").Value : false;
-                        previousUserData += $"{userId}:{readyValue};";
-                    }
-                }
-            }
-        });
+        StartCoroutine(InitializePreviousUserData());
+    }
 
+    private IEnumerator InitializePreviousUserData()
+    {
+        // Fetch initial data of all players
+        var playersInServerTask = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
+        yield return new WaitUntil(() => playersInServerTask.IsCompleted);
+
+        if (playersInServerTask.IsFaulted)
+        {
+            Debug.LogError($"Error fetching initial player data: {playersInServerTask.Exception}");
+            yield break;
+        }
+
+        DataSnapshot playersSnapshot = playersInServerTask.Result;
+        foreach (var playerSnapshot in playersSnapshot.Children)
+        {
+            var userId = playerSnapshot.Key;
+            var userDataSnapshot = playerSnapshot.Child("userData");
+
+            // Construct the previousUserData string based on the current snapshot
+            bool readyValue = userDataSnapshot.Child("ready").Exists ? (bool)userDataSnapshot.Child("ready").Value : false;
+            previousUserData += $"{userId}:{readyValue};";
+        }
+
+        // Subscribe to database events after initializing previousUserData
+        SubscribeToDatabaseEvents();
+
+        // Start coroutine to update players' UI
+        StartCoroutine(initLoadPlayers());
+    }
+
+    void SubscribeToDatabaseEvents()
+    {
+        // Subscribe to events for player changes
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded += HandlePlayerAdded;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved += HandlePlayerRemoved;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
         SceneManager.sceneLoaded += OnSceneLoaded;
-        StartCoroutine(initLoadPlayers());
     }
 
     IEnumerator initLoadPlayers()
@@ -66,21 +82,24 @@ public class WaitingRoomButtons : MonoBehaviour
 
     void HandlePlayerAdded(object sender, ChildChangedEventArgs args)
     {
+        if (this == null)
+            return;
         StartCoroutine(UpdatePlayers());
         countDownActive = false;
     }
 
     void HandlePlayerRemoved(object sender, ChildChangedEventArgs args)
     {
-        if (this != null)
-        {
-            StartCoroutine(UpdatePlayers());
+        if (this == null)
+            return;
+        StartCoroutine(UpdatePlayers());
             countDownActive = false;
-        }
     }
 
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
     {
+        if (this == null)
+            return;
         var currentUserId = args.Snapshot.Key;
         var currentUserData = args.Snapshot.Child("userData").GetRawJsonValue();
         var currentReadyNode = args.Snapshot.Child("userData").Child("ready");
@@ -129,40 +148,47 @@ public class WaitingRoomButtons : MonoBehaviour
 
     bool AreJsonFieldsChanged(string json1, string json2, params string[] excludedFields)
     {
-        var dict1 = JsonUtility.FromJson<Dictionary<string, object>>(json1);
-        var dict2 = JsonUtility.FromJson<Dictionary<string, object>>(json2);
-
-        // Check for null dictionaries
-        if (dict1 == null || dict2 == null)
-        {
-            return dict1 != dict2; // Return true if either dictionary is null
-        }
+        // Check if the JSON strings are equal
+        if (json1 == json2) return false;
 
         // Remove the fields to be excluded from the comparison
         foreach (var excludedField in excludedFields)
         {
-            dict1?.Remove(excludedField);
-            dict2?.Remove(excludedField);
+            json1 = RemoveJsonField(json1, excludedField);
+            json2 = RemoveJsonField(json2, excludedField);
         }
 
-        return !DictionaryEquals(dict1, dict2);
-    }
-
-    bool DictionaryEquals<TKey, TValue>(IDictionary<TKey, TValue> dict1, IDictionary<TKey, TValue> dict2)
-    {
-        if (dict1 == dict2) return true;
-        if (dict1 == null || dict2 == null) return false;
-        if (dict1.Count != dict2.Count) return false;
-
-        foreach (var kvp in dict1)
-        {
-            if (!dict2.TryGetValue(kvp.Key, out var value) || !EqualityComparer<TValue>.Default.Equals(kvp.Value, value))
-            {
-                return false;
-            }
-        }
+        // If the JSON strings are equal after removing excluded fields, return false
+        if (json1 == json2) return false;
 
         return true;
+    }
+
+    string RemoveJsonField(string json, string fieldToRemove)
+    {
+        if (json == null)
+        {
+            // Return an empty string if JSON is null
+            return string.Empty;
+        }
+
+        int fieldIndex = json.IndexOf(fieldToRemove);
+        if (fieldIndex >= 0)
+        {
+            int colonIndex = json.IndexOf(":", fieldIndex);
+            int commaIndex = json.IndexOf(",", colonIndex);
+            if (commaIndex < 0)
+            {
+                // Last field, remove until end of string
+                json = json.Remove(fieldIndex - 1);
+            }
+            else
+            {
+                // Middle field, remove until next comma
+                json = json.Remove(fieldIndex - 1, commaIndex - fieldIndex + 2);
+            }
+        }
+        return json;
     }
 
     [Serializable]
@@ -284,18 +310,67 @@ public class WaitingRoomButtons : MonoBehaviour
     {
         countDownActive = true;
 
-        for (int i = 3; i > -1 && countDownActive; i--)
+        var countdownStartFlagRef = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("countdownStartFlag");
+
+        while (countDownActive)
         {
-            countDownText.text = i.ToString();
-            yield return new WaitForSeconds(1);
-            if (i == 0 && countDownActive)
-                StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
-        }
-        if (!countDownActive)
-        { 
-            countDownText.text = "";
-            Debug.Log("Countdown stopped.");
-            yield break;
+            yield return new WaitForEndOfFrame();
+
+            var countdownStartFlagTask = countdownStartFlagRef.GetValueAsync();
+            yield return new WaitUntil(() => countdownStartFlagTask.IsCompleted);
+
+            if (countdownStartFlagTask.Exception == null)
+            {
+                bool countdownStartFlag = bool.Parse(countdownStartFlagTask.Result.Value.ToString());
+                if (!countdownStartFlag)
+                {
+                    // Countdown stopped by server
+                    countDownText.text = "";
+                    Debug.Log("Countdown stopped.");
+                    yield break;
+                }
+            }
+
+            for (int i = 3; i > -1 && countDownActive; i--)
+            {
+                countDownText.text = i.ToString();
+                yield return new WaitForSeconds(1);
+
+                // Check if any player has become unready during the countdown
+                var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
+                yield return new WaitUntil(() => playersInServer.IsCompleted);
+
+                DataSnapshot snapshot = playersInServer.Result;
+
+                bool anyPlayerUnready = false;
+
+                if (snapshot.Exists)
+                {
+                    foreach (var playerSnapshot in snapshot.Children)
+                    {
+                        bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
+                        bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
+
+                        if (isConnected && !isReady)
+                        {
+                            anyPlayerUnready = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (anyPlayerUnready)
+                {
+                    // If any player is unready, stop the countdown
+                    Debug.Log("A player became unready. Countdown stopped.");
+                    countDownActive = false;
+                    countDownText.text = "";
+                    yield break;
+                }
+
+                if (i == 0 && countDownActive)
+                    StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
+            }
         }
     }
 }
