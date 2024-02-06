@@ -254,7 +254,6 @@ public class ServerManager : MonoBehaviour
 
         if (snapshot.Exists && snapshot.ChildrenCount > 1)
         {
-            WaitingRoomButtons waitingRoom = FindObjectOfType<WaitingRoomButtons>();
             bool allPlayersReady = true;
 
             foreach (var playerSnapshot in snapshot.Children)
@@ -262,9 +261,8 @@ public class ServerManager : MonoBehaviour
                 bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
                 bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
 
-                if (isConnected && !isReady || !isConnected)
+                if (isConnected && !isReady)
                 {
-                    waitingRoom.countDownActive = false;
                     allPlayersReady = false;
                     break;
                 }
@@ -272,15 +270,41 @@ public class ServerManager : MonoBehaviour
 
             if (allPlayersReady)
             {
-                StartCoroutine(waitingRoom.CountDownBeforeStart());
+                foreach (var playerSnapshot in snapshot.Children)
+                {
+                    bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
+                    bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
+
+                    if (isConnected && isReady)
+                    {
+                        string playerId = playerSnapshot.Key;
+                        StartCoroutine(StartCountdownForPlayer(playerId));
+                    }
+                }
             }
         }
         else
         {
             // No players in the server, handle as needed (e.g., wait for players to join)
             Debug.Log("Not enough players to start");
-        } 
+        }
     }
+
+    IEnumerator StartCountdownForPlayer(string playerId)
+    {
+        WaitingRoomButtons waitingRoom = FindObjectOfType<WaitingRoomButtons>();
+        var userReference = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(playerId);
+
+        var countdownTask = userReference.Child("userData").Child("countdownStarted").SetValueAsync(true);
+        yield return new WaitUntil(() => countdownTask.IsCompleted);
+
+        // Start the countdown on the player's side
+        if (countdownTask.Exception == null)
+        {
+            StartCoroutine(waitingRoom.CountDownBeforeStart());
+        }
+    }
+
 
     public IEnumerator SetGameStartedFlagCoroutine()
     {

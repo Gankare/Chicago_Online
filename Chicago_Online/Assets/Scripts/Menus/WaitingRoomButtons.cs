@@ -26,12 +26,31 @@ public class WaitingRoomButtons : MonoBehaviour
 
     private void Start()
     {
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync().ContinueWithOnMainThread(task =>
+        {
+            if (task.IsCompleted && !task.IsFaulted)
+            {
+                DataSnapshot playersSnapshot = task.Result;
+                foreach (var playerSnapshot in playersSnapshot.Children)
+                {
+                    var userDataSnapshot = playerSnapshot.Child("userData");
+                    var userId = playerSnapshot.Key;
+                    if (userDataSnapshot.Exists)
+                    {
+                        var readyValue = userDataSnapshot.Child("ready").Exists ? (bool)userDataSnapshot.Child("ready").Value : false;
+                        previousUserData += $"{userId}:{readyValue};";
+                    }
+                }
+            }
+        });
+
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded += HandlePlayerAdded;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved += HandlePlayerRemoved;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
         SceneManager.sceneLoaded += OnSceneLoaded;
         StartCoroutine(initLoadPlayers());
     }
+
     IEnumerator initLoadPlayers()
     {
         yield return new WaitForSeconds(1);
