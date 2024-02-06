@@ -8,6 +8,7 @@ using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System;
+using Unity.VisualScripting;
 
 public class WaitingRoomButtons : MonoBehaviour
 {
@@ -332,7 +333,6 @@ public class WaitingRoomButtons : MonoBehaviour
             for (int i = 3; i > -1 && countDownActive; i--)
             {
                 countDownText.text = i.ToString();
-                yield return new WaitForSeconds(1);
 
                 // Check if any player has become unready during the countdown
                 var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
@@ -346,10 +346,9 @@ public class WaitingRoomButtons : MonoBehaviour
                 {
                     foreach (var playerSnapshot in snapshot.Children)
                     {
-                        bool isConnected = bool.Parse(playerSnapshot.Child("userData").Child("connected").Value.ToString());
                         bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
 
-                        if (isConnected && !isReady)
+                        if (!isReady)
                         {
                             anyPlayerUnready = true;
                             break;
@@ -363,11 +362,15 @@ public class WaitingRoomButtons : MonoBehaviour
                     Debug.Log("A player became unready. Countdown stopped.");
                     countDownActive = false;
                     countDownText.text = "";
+                    var setCountdownStartFlagTask = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("countdownStartFlag").SetValueAsync(false);
+                    yield return new WaitUntil(() => setCountdownStartFlagTask.IsCompleted);
+                    StartCoroutine(UpdatePlayers());
                     yield break;
                 }
 
                 if (i == 0 && countDownActive)
                     StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
+                yield return new WaitForSeconds(1);
             }
         }
     }
