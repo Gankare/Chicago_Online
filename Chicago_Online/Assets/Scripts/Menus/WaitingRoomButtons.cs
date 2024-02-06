@@ -82,8 +82,6 @@ public class WaitingRoomButtons : MonoBehaviour
 
     void HandlePlayerAdded(object sender, ChildChangedEventArgs args)
     {
-        if (this == null)
-            return;
         StartCoroutine(UpdatePlayers());
         countDownActive = false;
     }
