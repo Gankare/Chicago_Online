@@ -8,7 +8,6 @@ using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System;
-using Unity.VisualScripting;
 
 public class WaitingRoomButtons : MonoBehaviour
 {
@@ -22,7 +21,7 @@ public class WaitingRoomButtons : MonoBehaviour
 
     private bool updating = false;
     private string previousUserData;
-    private Dictionary<string, bool> previousReadyValues = new Dictionary<string, bool>();
+    private Dictionary<string, bool> previousReadyValues = new();
 
     private void Start()
     {

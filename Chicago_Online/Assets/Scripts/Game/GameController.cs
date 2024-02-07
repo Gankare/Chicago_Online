@@ -12,15 +12,14 @@ using UnityEngine.SceneManagement;
 
 public class GameController : MonoBehaviour
 {
-    public List<CardScriptableObject> cards = new List<CardScriptableObject>();
-    public List<string> deck = new List<string>();
-    public List<string> discardPile = new List<string>();
-    public List<string> playersHand = new List<string>();
+    public List<CardScriptableObject> cards = new();
+    public List<string> deck = new();
+    public List<string> discardPile = new();
+    public List<string> playersHand = new();
     private string serverId;
     private int currentGameRound = 0; // Tracks the current round of the game
-    private List<string> playerIds = new List<string>(); // List of player IDs
+    private List<string> playerIds = new(); // List of player IDs
     private int playerIndex = 0; // Index of the current player
-    private bool isPlayerTurn = false; // Indicates if it's the player's turn
     private float turnDuration = 20f; // Time duration for each player's turn
     private float turnTimer = 0f; // Timer for the player's turn
 
@@ -64,7 +63,7 @@ public class GameController : MonoBehaviour
         if (playerIds.Count > 1)
         {
             // Start the first round
-            StartNextRound();
+            StartCoroutine(StartNextRound());
         }
         else
         {
@@ -73,75 +72,68 @@ public class GameController : MonoBehaviour
         }
     }
 
-    private void StartNextRound()
+    IEnumerator StartNextRound()
     {
-        // Increment the current game round
-        currentGameRound++;
-        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(currentGameRound);
-
         // Start the turn for the current player
         string currentPlayerId = playerIds[playerIndex];
-        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("isTurn").SetValueAsync(true);
+        if (currentPlayerId == DataSaver.instance.userId)
+        {
+            var setTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("isTurn").SetValueAsync(true);
+            yield return new WaitUntil(() => setTurn.IsCompleted);
+        }
+        // Increment the current game round
+        currentGameRound++;
+        if (currentPlayerId == DataSaver.instance.userId)
+        {
+            var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(currentGameRound);
+            yield return new WaitUntil(() => setGameRound.IsCompleted);
+        }
+
 
         // Start the turn timer
-        isPlayerTurn = true;
         turnTimer = turnDuration;
+        StartCoroutine(PlayerTurnTimer());
     }
 
     private IEnumerator PlayerTurnTimer()
     {
-        // Only execute the timer logic if it's the user's turn
-        if (isPlayerTurn && playerIds[playerIndex] == DataSaver.instance.userId)
+        // Set the initial turn timer value
+        turnTimer = turnDuration;
+
+        // Loop until the turn timer runs out
+        while (turnTimer > 0f)
         {
-            // Set the initial turn timer value
-            turnTimer = turnDuration;
+            // Update the turn timer
+            turnTimer -= Time.deltaTime;
 
-            // Loop until the turn timer runs out
-            while (turnTimer > 0f)
+            // Check if the turn timer has run out
+            if (turnTimer <= 0f)
             {
-                // Update the turn timer
-                turnTimer -= Time.deltaTime;
-
-                // Check if the turn timer has run out
-                if (turnTimer <= 0f)
-                {
-                    // End the player's turn if the timer runs out
-                    EndPlayerTurn();
-                    yield break; // Exit the coroutine
-                }
-
-                yield return null; // Wait for the next frame
+                // End the player's turn if the timer runs out
+                EndPlayerTurn();
+                yield break; // Exit the coroutine
             }
+
+            yield return null; // Wait for the next frame
         }
     }
 
-    private void StartPlayerTurn()
+    IEnumerator EndPlayerTurn()
     {
-        // Set the current player's turn in the database
         string currentPlayerId = playerIds[playerIndex];
-        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("isTurn").SetValueAsync(true);
 
-        // Start the turn timer coroutine
-        StartCoroutine(PlayerTurnTimer());
-    }
-
-    private void EndPlayerTurn()
-    {
-        // End the current player's turn
-        isPlayerTurn = false;
-
-        // Update the current player's round counter in the database
-        string currentPlayerId = playerIds[playerIndex];
-        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("roundCounter").SetValueAsync(currentGameRound);
-
-        // Set isTurn to false for the current player
-        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("isTurn").SetValueAsync(false);
+        if (currentPlayerId == DataSaver.instance.userId)
+        {
+            var setUserRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("roundCounter").SetValueAsync(currentGameRound);
+            var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("isTurn").SetValueAsync(false);
+            yield return new WaitUntil(() => setUserRound.IsCompleted && removeUserTurn.IsCompleted);
+        }
 
         // Move to the next player
         playerIndex = (playerIndex + 1) % playerIds.Count;
 
         // Start the next player's turn
-        StartNextRound();
+        StartCoroutine(StartNextRound());
     }
     private void PopulateCardsList()
     {
@@ -168,7 +160,7 @@ public class GameController : MonoBehaviour
 
     private List<CardScriptableObject> ShuffleDeck(List<CardScriptableObject> deck)
     {
-        List<CardScriptableObject> shuffledDeck = new List<CardScriptableObject>(deck);
+        List<CardScriptableObject> shuffledDeck = new(deck);
         int n = shuffledDeck.Count;
         while (n > 1)
         {
@@ -250,7 +242,7 @@ public class GameController : MonoBehaviour
     private List<CardScriptableObject> GetPlayerCards()
     {
         // Fetch the player's hand from the database and convert it to CardScriptableObject instances
-        List<CardScriptableObject> playerCards = new List<CardScriptableObject>();
+        List<CardScriptableObject> playerCards = new();
         // Implement the logic to retrieve the player's hand from the database
         return playerCards;
     }
@@ -263,8 +255,8 @@ public class GameController : MonoBehaviour
     private int CalculateScore(List<CardScriptableObject> playerCards)
     {
         // Count occurrences of each card number and suit
-        Dictionary<CardScriptableObject.CardHierarchy, int> cardNumberCount = new Dictionary<CardScriptableObject.CardHierarchy, int>();
-        Dictionary<CardScriptableObject.Suit, int> cardSuitCount = new Dictionary<CardScriptableObject.Suit, int>();
+        Dictionary<CardScriptableObject.CardHierarchy, int> cardNumberCount = new();
+        Dictionary<CardScriptableObject.Suit, int> cardSuitCount = new();
 
         foreach (var card in playerCards)
         {
@@ -455,6 +447,3 @@ public class GameController : MonoBehaviour
     }
 
 }
-    
-
-
