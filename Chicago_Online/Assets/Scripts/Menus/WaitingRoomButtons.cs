@@ -65,7 +65,28 @@ public class WaitingRoomButtons : MonoBehaviour
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded += HandlePlayerAdded;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved += HandlePlayerRemoved;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("gameHasStarted").ChildChanged += HandleGameStarted;
         SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+    void RemovePlayerChangedListener()
+    {
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded -= HandlePlayerAdded;
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved -= HandlePlayerRemoved;
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged -= HandlePlayerChanged;
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("gameHasStarted").ChildChanged -= HandleGameStarted;
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        // Remove the listener when the script is disabled
+        RemovePlayerChangedListener();
+    }
+
+    private void OnDestroy()
+    {
+        // Remove the listener when the object is destroyed
+        RemovePlayerChangedListener();
     }
 
     IEnumerator initLoadPlayers()
@@ -73,12 +94,41 @@ public class WaitingRoomButtons : MonoBehaviour
         yield return new WaitForSeconds(1);
         StartCoroutine(UpdatePlayers());
     }
+
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (scene.name == "MenuScene" || scene.name == "ServerScene")
         {
             Destroy(gameObject);
         }
+    }
+
+    void HandleGameStarted(object sender, ChildChangedEventArgs args)
+    {
+        var gameHasStartedRef = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("gameHasStarted");
+
+        var gameHasStartedTask = gameHasStartedRef.GetValueAsync();
+        gameHasStartedTask.ContinueWith(task =>
+        {
+            if (task.IsCompleted && !task.IsFaulted)
+            {
+                DataSnapshot snapshot = task.Result;
+                bool gameHasStarted = snapshot != null && snapshot.Exists && (bool)snapshot.Value;
+
+                if (gameHasStarted)
+                {
+                    // If the game has started, call the function
+                    if (this != null)
+                        StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
+                }
+                else
+                    Debug.Log("Game not started yet");
+            }
+            else
+            {
+                Debug.LogError($"Error fetching gameHasStarted data: {task.Exception}");
+            }
+        });
     }
 
     void HandlePlayerAdded(object sender, ChildChangedEventArgs args)
@@ -111,7 +161,7 @@ public class WaitingRoomButtons : MonoBehaviour
             if (this != null)
             {
                 StartCoroutine(UpdatePlayers());
-                ServerManager.instance.CheckAllPlayersReady();
+                StartCoroutine(ServerManager.instance.CheckAllPlayersReady());
             }
         }
         else if (AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity"))
@@ -196,24 +246,6 @@ public class WaitingRoomButtons : MonoBehaviour
         public bool ready;
     }
 
-    private void OnDisable()
-    {
-        // Remove the listener when the script is disabled
-        RemovePlayerChangedListener();
-        SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
-    private void OnDestroy()
-    {
-        // Remove the listener when the object is destroyed
-        RemovePlayerChangedListener();
-        SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
-    void RemovePlayerChangedListener()
-    {
-        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded -= HandlePlayerAdded;
-        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved -= HandlePlayerRemoved;
-        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged -= HandlePlayerChanged;
-    }
     public void Ready()
     {
         StartCoroutine(ServerManager.instance.PlayerReadyStatus(DataSaver.instance.userId, true));
@@ -330,7 +362,7 @@ public class WaitingRoomButtons : MonoBehaviour
                 }
             }
 
-            for (int i = 3; i > -1 && countDownActive; i--)
+            for (int i = 3; i > -1; i--)
             {
                 countDownText.text = i.ToString();
 
@@ -360,15 +392,13 @@ public class WaitingRoomButtons : MonoBehaviour
                 {
                     // If any player is unready, stop the countdown
                     Debug.Log("A player became unready. Countdown stopped.");
-                    countDownActive = false;
                     countDownText.text = "";
-                    var setCountdownStartFlagTask = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("countdownStartFlag").SetValueAsync(false);
-                    yield return new WaitUntil(() => setCountdownStartFlagTask.IsCompleted);
                     StartCoroutine(UpdatePlayers());
-                    yield break;
+                    countDownActive = false;
+                    break;
                 }
 
-                if (i == 0 && countDownActive)
+                if (i == 0)
                     StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
                 yield return new WaitForSeconds(1);
             }

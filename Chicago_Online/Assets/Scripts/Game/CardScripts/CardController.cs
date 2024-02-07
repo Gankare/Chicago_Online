@@ -18,9 +18,4 @@ public class CardController : MonoBehaviour
             offset += 0.2f;
         } 
     }
-
-    void Update()
-    {
-        
-    }
 }

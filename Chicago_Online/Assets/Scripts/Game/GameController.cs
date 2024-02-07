@@ -10,13 +10,31 @@ public class GameController : MonoBehaviour
 {
     public GameObject card;
     public List<CardScriptableObject> cards = new();
-    public void ShuffleAndDistributeCards(string serverId, List<CardScriptableObject> deck, List<string> playerIds)
+    public List<string> deck = new();
+    public List<string> discardPile = new();
+    public List<string> playersHand = new();
+    private string serverId;
+    private void Awake()
     {
-        // Shuffle the deck
+        serverId = ServerManager.instance.serverId;
+        ShuffleAndDealOwnCards(cards);
+    }
+
+    public void ShuffleAndDealOwnCards(List<CardScriptableObject> deck)
+    {
+        // Shuffle the deck locally
         List<CardScriptableObject> shuffledDeck = ShuffleDeck(deck);
 
-        // Distribute cards to players
-        DistributeCards(serverId, shuffledDeck, playerIds);
+        // Deal cards to the local player
+        DealCards(shuffledDeck);
+
+
+        var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(deck);
+        var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(discardPile);
+        var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(playersHand);
+        yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted);
+       // Save the player's hand to the database
+       SavePlayerHandToDatabase();
     }
 
     private List<CardScriptableObject> ShuffleDeck(List<CardScriptableObject> deck)
@@ -34,30 +52,28 @@ public class GameController : MonoBehaviour
         return deck;
     }
 
-    private void DistributeCards(string serverId, List<CardScriptableObject> deck, List<string> playerIds)
+    private void DealCards(List<CardScriptableObject> shuffledDeck)
     {
-        int cardsPerPlayer = deck.Count / playerIds.Count;
+        int cardsToDeal = 5; // Adjust as needed
 
-        for (int i = 0; i < playerIds.Count; i++)
+        for (int i = 0; i < cardsToDeal; i++)
         {
-            string playerId = playerIds[i];
-            List<CardScriptableObject> playerCards = deck.GetRange(i * cardsPerPlayer, cardsPerPlayer);
+            // Draw a card from the top of the deck
+            CardScriptableObject drawnCard = shuffledDeck[0];
 
-            // Save player's cards to the database
-            SavePlayerCards(serverId, playerId, playerCards);
+            // Add the card to the player's hand
+            playersHand.Add(drawnCard.cardId);
+
+            // Remove the card from the deck
+            shuffledDeck.RemoveAt(0);
         }
     }
 
-    private void SavePlayerCards(string serverId, string playerId, List<CardScriptableObject> playerCards)
+    private void SavePlayerHandToDatabase()
     {
-        foreach (var card in playerCards)
-        {
-            // Save card details to the database
-            string cardPath = $"servers/{serverId}/players/{playerId}/cards/{card.cardId}";
-            // Use Firebase SDK to update the database
-            // For example:
-            // FirebaseDatabase.DefaultInstance.GetReference(cardPath).SetValueAsync(card.ToDictionary());
-        }
+        // Save the player's hand to the database using Firebase SDK
+
+        // Example: FirebaseDatabase.DefaultInstance.GetReference(playerHandPath).SetRawJsonValueAsync(JsonUtility.ToJson(playersHand));
     }
     public void IncrementRoundCounter(string serverId)
     {
@@ -67,27 +83,21 @@ public class GameController : MonoBehaviour
         // For example:
         // FirebaseDatabase.DefaultInstance.GetReference(roundCounterPath).RunTransaction(yourIncrementFunction);
     }
-    public void ScoreHands(string serverId, List<string> playerIds)
+    IEnumerator CountAndSetValueOfHand()
     {
-        foreach (var playerId in playerIds)
-        {
-            // Retrieve the player's cards from the database
-            List<CardScriptableObject> playerCards = GetPlayerCards(serverId, playerId);
+        // Retrieve the player's cards from the database
+        List<CardScriptableObject> playerCards = GetPlayerCards();
 
-            // Calculate the score for the player's hand
-            int score = CalculateScore(playerCards);
-
-            // Update the player's score in the database
-            SavePlayerScore(serverId, playerId, score);
-        }
+        // Calculate the score for the player's hand
+        int score = CalculateScore(playerCards);
+        var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(score);
+        yield return new WaitUntil(() => setUserHandValue.IsCompleted);
+        // Update the player's score in the database
+        SavePlayerScore(score);
     }
 
-    private List<CardScriptableObject> GetPlayerCards(string serverId, string playerId)
+    private List<CardScriptableObject> GetPlayerCards()
     {
-        // Retrieve the player's cards from the database using Firebase SDK
-        // Example path: $"servers/{serverId}/players/{playerId}/cards"
-        // Use Firebase SDK to get the cards from the database
-
         // Replace the next line with the actual code to fetch the cards from the database
         List<CardScriptableObject> playerCards = new List<CardScriptableObject>();
 
@@ -122,8 +132,6 @@ public class GameController : MonoBehaviour
                 cardSuitCount.Add(card.cardSuit, 1);
             }
         }
-
-        int currentHandValue = 0;
 
         // Check for a royal straight flush
         bool hasRoyalStraightFlush = CheckForRoyalStraightFlush(cardNumberCount.Keys.ToList(), cardSuitCount);
@@ -290,22 +298,12 @@ public class GameController : MonoBehaviour
     });
     }
 
-    private void SavePlayerScore(string serverId, string playerId, int score)
+    private void SavePlayerScore(int score)
     {
-        // Save the player's score to the database using Firebase SDK
-        // Example path: $"servers/{serverId}/players/{playerId}/score"
-        // Use Firebase SDK to update the score in the database
 
-        // Replace the next line with the actual code to update the score in the database
-        Debug.Log($"Player {playerId} has a score of {score}");
     }
     public void UpdateScores(string serverId, Dictionary<string, int> scores)
     {
-        // Update scores in the database
-        string scoresPath = $"servers/{serverId}/scores";
-        // Use Firebase SDK to update the database
-        // For example:
-        // FirebaseDatabase.DefaultInstance.GetReference(scoresPath).UpdateChildrenAsync(scores);
     }
 }
     

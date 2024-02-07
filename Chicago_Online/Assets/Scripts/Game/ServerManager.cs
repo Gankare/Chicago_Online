@@ -154,7 +154,7 @@ public class ServerManager : MonoBehaviour
             var setCountdownStartFlagTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("countdownStartFlag").SetValueAsync(false);
             var connectUser = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("connected").SetValueAsync(isConnected);
             var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userData").Child("ready").SetValueAsync(false);
-            var setTimeStamp = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").Child
+            var setTimeStamp = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child
                 (DataSaver.instance.userId).Child("userData").Child("lastActivity").SetValueAsync(ServerValue.Timestamp); 
 
             yield return new WaitUntil(() => connectUser.IsCompleted && setUserReady.IsCompleted && setTimeStamp.IsCompleted && setCountdownStartFlagTask.IsCompleted);
