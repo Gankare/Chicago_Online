@@ -104,10 +104,6 @@ public class DisplayServerButton : MonoBehaviour
 
             // If the server does not exist, create it
             var setUser = serverReference.Child("players").SetValueAsync(DataSaver.instance.userId);
-            var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck");
-            var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile");
-            var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand");
-            var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue");
             var setCountdownStartFlagTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("countdownStartFlag").SetValueAsync(false);
             var setUserConnected = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userData").Child("connected").SetValueAsync(true);
             var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userData").Child("ready").SetValueAsync(false);
