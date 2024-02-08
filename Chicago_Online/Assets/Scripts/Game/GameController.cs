@@ -9,11 +9,11 @@ using UnityEngine.UI;
 using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
-using UnityEngine.SocialPlatforms.Impl;
 using Unity.VisualScripting;
 
 public class GameController : MonoBehaviour
 {
+    public List<GameObject> selectedCardObjects = new();
     public List<Transform> cardSlots = new();
     public List<CardScriptableObject> cards = new();
     public List<CardScriptableObject> deck = new();
@@ -317,9 +317,32 @@ public class GameController : MonoBehaviour
     #endregion
 
     #region PlayerCardActions
-    public void ThrowCard()
+    public void SelectCardToThrow(GameObject cardObject)
     {
+        // If the card is already selected, deselect it
+        if (selectedCardObjects.Contains(cardObject))
+        {
+            selectedCardObjects.Remove(cardObject);
+            cardObject.GetComponent<SpriteRenderer>().color = Color.white;
+        }
+        else // If the card is not selected, select it
+        {
+            selectedCardObjects.Add(cardObject);
+            cardObject.GetComponent<SpriteRenderer>().color = Color.red;
+        }
+    }
+    public void ThrowCards()
+    {
+        // Remove all selected cards from the hand list and destroy their corresponding GameObjects
+        foreach (GameObject selectedCardObject in selectedCardObjects)
+        {
+            CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
+            hand.Remove(GetCardFromId(cardInfo.cardId));
+            Destroy(selectedCardObject);
+        }
 
+        // Clear the list of selected card objects
+        selectedCardObjects.Clear();
     }
     #endregion
 
