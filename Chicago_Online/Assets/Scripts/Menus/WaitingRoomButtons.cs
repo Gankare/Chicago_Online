@@ -18,8 +18,6 @@ public class WaitingRoomButtons : MonoBehaviour
     public List<Image> readyCards;
     public GameObject buttons;
     public bool countDownActive = false;
-
-    private bool updating = false;
     private string previousUserData;
     private Dictionary<string, bool> previousReadyValues = new();
 
@@ -256,11 +254,10 @@ public class WaitingRoomButtons : MonoBehaviour
 
     IEnumerator UpdatePlayers()
     {
-        if (updating)
+        if (this == null)
         {
             yield break;
         }
-        updating = true;
         //Reset values
         int players = 0;
         int playersReady = 0;
@@ -328,7 +325,6 @@ public class WaitingRoomButtons : MonoBehaviour
                 players++;
             }
         }
-        updating = false;
         amountOfPlayersText.text = $"{playersReady}/{players} players ready";
     }
 
@@ -392,8 +388,8 @@ public class WaitingRoomButtons : MonoBehaviour
                     // If any player is unready, stop the countdown
                     Debug.Log("A player became unready. Countdown stopped.");
                     countDownText.text = "";
-                    StartCoroutine(UpdatePlayers());
                     countDownActive = false;
+                    StartCoroutine(UpdatePlayers());
                     break;
                 }
 
