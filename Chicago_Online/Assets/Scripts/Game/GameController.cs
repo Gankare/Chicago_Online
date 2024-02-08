@@ -9,15 +9,16 @@ using UnityEngine.UI;
 using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
-using UnityEngine.XR;
+using UnityEngine.SocialPlatforms.Impl;
 
 public class GameController : MonoBehaviour
 {
-    public List<CardScriptableObject> cards = new();
+    public List<CardScriptableObject> deck = new();
+    public List<CardScriptableObject> discardPile = new();
     public List<CardScriptableObject> hand = new();
-    public List<string> deck = new();
-    public List<string> discardPile = new();
-    public List<string> playersHand = new();
+    public List<string> firebaseDeck = new();
+    public List<string> firebaseDiscardPile = new();
+    public List<string> firebaseHand = new();
     private string serverId;
     private int currentGameRound = 0; // Tracks the current round of the game
     private int playerIndex = 0; // Index of the current player
@@ -50,8 +51,11 @@ public class GameController : MonoBehaviour
                     string id = childSnapshot.Key;
                     playerIds.Add(id);
                     // Initialize round counter for each player
-                    var setRoundCounter = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("roundCounter").SetValueAsync(0);
-                    yield return new WaitUntil(() => setRoundCounter.IsCompleted);
+                    var setRoundCounter = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("roundCounter").SetValueAsync(0);
+                    var setpPlayerHandNull = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("hand").SetValueAsync("");
+                    var setTurnFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("isTurn").SetValueAsync(false);
+                    var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(0);
+                    yield return new WaitUntil(() => setRoundCounter.IsCompleted && setpPlayerHandNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted);
                 }
 
                 // Start the game once all player IDs are fetched
@@ -78,9 +82,9 @@ public class GameController : MonoBehaviour
     }
     IEnumerator CreateCardsLists()
     {
-        foreach (CardScriptableObject card in cards)
+        foreach (CardScriptableObject card in deck)
         {
-            deck.Add(card.cardId);
+            firebaseDeck.Add(card.cardId);
         }
         yield return null;
     }
@@ -91,14 +95,9 @@ public class GameController : MonoBehaviour
         string currentPlayerId = playerIds[playerIndex];
         if (currentPlayerId == DataSaver.instance.userId)
         {
-            var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("isTurn").SetValueAsync(true);
+            var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
             yield return new WaitUntil(() => setTurnTrue.IsCompleted);
-            StartCoroutine(ShuffleAndDealOwnCards(cards));
-        }
-        else
-        {
-            var setTurnFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("isTurn").SetValueAsync(false);
-            yield return new WaitUntil(() => setTurnFalse.IsCompleted);
+            StartCoroutine(ShuffleAndDealOwnCards(deck));
         }
         // Increment the current game round
         currentGameRound++;
@@ -143,8 +142,8 @@ public class GameController : MonoBehaviour
 
         if (currentPlayerId == DataSaver.instance.userId)
         {
-            var setUserRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("roundCounter").SetValueAsync(currentGameRound);
-            var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("isTurn").SetValueAsync(false);
+            var setUserRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("roundCounter").SetValueAsync(currentGameRound);
+            var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
             yield return new WaitUntil(() => setUserRound.IsCompleted && removeUserTurn.IsCompleted);
         }
 
@@ -171,8 +170,8 @@ public class GameController : MonoBehaviour
 
         // Save deck and discard pile to the database
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(shuffledDeck);
-        var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(discardPile);
-        var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(playersHand);
+        var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
+        var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(firebaseHand);
         yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted);
     }
 
@@ -199,33 +198,37 @@ public class GameController : MonoBehaviour
             // Draw a card from the top of the deck
             CardScriptableObject drawnCard = shuffledDeck[0];
             // Add the card ID to the player's hand
-            playersHand.Add(drawnCard.cardId);
+            firebaseHand.Add(drawnCard.cardId);
             // Remove the card from the deck
             shuffledDeck.RemoveAt(0);
         }
 
         // Update UI to display player's hand
-
-        UpdatePlayerHandUI();
     }
 
-    private void UpdatePlayerHandUI()
+    IEnumerator UpdateFirebase()
     {
-        
-        // Example code to update the UI goes here
-        // You might want to instantiate card prefabs and position them accordingly based on the player's hand
+        firebaseHand.Clear();
+        foreach (CardScriptableObject card in hand)
+            firebaseHand.Add(card.cardId);
+
+        firebaseDiscardPile.Clear();
+        foreach (CardScriptableObject card in discardPile)
+            firebaseDiscardPile.Add(card.cardId);
+
+        firebaseDeck.Clear();
+        foreach (CardScriptableObject card in deck)
+            firebaseDeck.Add(card.cardId);
+
+        var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(firebaseHand);
+        var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
+        var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
+        yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted);
     }
 
-    // Method to handle card throw event
-    public void ThrowCard(string cardId)
+    public void ThrowCard()
     {
-        // Remove the card from the player's hand
-        playersHand.Remove(cardId);
-        // Add the card to the discard pile
-        discardPile.Add(cardId);
 
-        // Update UI to reflect the changes
-        UpdatePlayerHandUI();
     }
 
     private IEnumerator CountAndSetValueOfHand()
@@ -247,12 +250,6 @@ public class GameController : MonoBehaviour
         List<CardScriptableObject> playerCards = new();
         // Implement the logic to retrieve the player's hand from the database
         return playerCards;
-    }
-
-    IEnumerator RoundCounter(int roundConter)
-    {
-        var setUserRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("round").SetValueAsync(roundConter);
-        yield return new WaitUntil(() => setUserRound.IsCompleted);
     }
     private int CalculateScore(List<CardScriptableObject> playerCards)
     {
