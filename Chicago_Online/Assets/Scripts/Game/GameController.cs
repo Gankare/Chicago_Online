@@ -10,9 +10,11 @@ using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using UnityEngine.SocialPlatforms.Impl;
+using Unity.VisualScripting;
 
 public class GameController : MonoBehaviour
 {
+    public List<Transform> cardSlots = new();
     public List<CardScriptableObject> cards = new();
     public List<CardScriptableObject> deck = new();
     public List<CardScriptableObject> discardPile = new();
@@ -31,6 +33,8 @@ public class GameController : MonoBehaviour
     {
         serverId = ServerManager.instance.serverId;
     }
+
+    #region StartGame
     private void Start()
     {
         StartCoroutine(SetStartDeck());
@@ -88,6 +92,9 @@ public class GameController : MonoBehaviour
             SceneManager.LoadScene("ServerScene");
         }
     }
+    #endregion
+
+    #region StartRoundAndGiveUserCards
     IEnumerator StartNextRound()
     {
         // Start the turn for the current player
@@ -167,7 +174,7 @@ public class GameController : MonoBehaviour
 
         // Deal cards to the local player
         DealCards(shuffledDeck);
-
+        DisplayCardsDrawn();
         yield return null;
     }
 
@@ -194,18 +201,24 @@ public class GameController : MonoBehaviour
             // Draw a card from the top of the deck
             CardScriptableObject drawnCard = shuffledDeck[0];
             // Add the card ID to the player's hand
-            firebaseHand.Add(drawnCard.cardId);
+            hand.Add(drawnCard);
             // Remove the card from the deck
             shuffledDeck.RemoveAt(0);
         }
-
-        // Update UI to display player's hand
     }
-    public void ThrowCard()
+    private void DisplayCardsDrawn()
     {
-
+        foreach(CardScriptableObject card in hand)
+        {
+            var currentCard = Instantiate(card, transform);
+            currentCard.GetComponent<SpriteRenderer>().sprite = card.cardSprite;
+            currentCard.GetComponent<CardInfo>().power = card.power;
+            currentCard.GetComponent<CardInfo>().cardId = card.cardId;
+        }
     }
+    #endregion
 
+    #region UpdateFireBaseAndLocalCards
     IEnumerator UpdateFirebase()
     {
         firebaseHand.Clear();
@@ -301,8 +314,16 @@ public class GameController : MonoBehaviour
         Debug.LogError("Card with ID " + cardId + " not found.");
         return null;
     }
+    #endregion
 
+    #region PlayerCardActions
+    public void ThrowCard()
+    {
 
+    }
+    #endregion
+
+    #region CountValueOfHand
     private IEnumerator CountAndSetValueOfHand()
     {
         // Retrieve the player's cards from the database
@@ -516,5 +537,5 @@ public class GameController : MonoBehaviour
         CardScriptableObject.CardHierarchy.Ace
     });
     }
-
+    #endregion
 }
