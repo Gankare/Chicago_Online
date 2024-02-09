@@ -388,12 +388,12 @@ public class WaitingRoomButtons : MonoBehaviour
                     // If any player is unready, stop the countdown
                     Debug.Log("A player became unready. Countdown stopped.");
                     countDownText.text = "";
-                    countDownActive = false;
                     StartCoroutine(UpdatePlayers());
+                    countDownActive = false;
                     break;
                 }
 
-                if (i == 0)
+                if (i == 0 && countDownActive)
                     StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
                 yield return new WaitForSeconds(1);
             }
