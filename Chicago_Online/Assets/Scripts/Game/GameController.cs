@@ -14,7 +14,7 @@ using Unity.VisualScripting;
 public class GameController : MonoBehaviour
 {
     public List<GameObject> selectedCardObjects = new();
-    public List<Transform> cardSlots = new();
+    public Transform handSlot;
     public List<CardScriptableObject> cards = new();
     public List<CardScriptableObject> deck = new();
     public List<CardScriptableObject> discardPile = new();
@@ -210,8 +210,7 @@ public class GameController : MonoBehaviour
     {
         foreach(CardScriptableObject card in hand)
         {
-            var currentCard = Instantiate(card, transform);
-            //Position for the card make a horizontal list ting in ui unity later
+            var currentCard = Instantiate(card, handSlot);
             currentCard.GetComponent<SpriteRenderer>().sprite = card.cardSprite;
             currentCard.GetComponent<CardInfo>().power = card.power;
             currentCard.GetComponent<CardInfo>().cardId = card.cardId;
