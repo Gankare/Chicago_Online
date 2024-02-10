@@ -13,6 +13,7 @@ using Unity.VisualScripting;
 
 public class GameController : MonoBehaviour
 {
+    public GameObject card;
     public List<GameObject> selectedCardObjects = new();
     public Transform handSlot;
     public List<CardScriptableObject> cards = new();
@@ -211,7 +212,7 @@ public class GameController : MonoBehaviour
         foreach(CardScriptableObject card in hand)
         {
             var currentCard = Instantiate(card, handSlot);
-            currentCard.GetComponent<SpriteRenderer>().sprite = card.cardSprite;
+            currentCard.GetComponent<Image>().sprite = card.cardSprite;
             currentCard.GetComponent<CardInfo>().power = card.power;
             currentCard.GetComponent<CardInfo>().cardId = card.cardId;
         }
