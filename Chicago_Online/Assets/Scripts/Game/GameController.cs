@@ -9,7 +9,6 @@ using UnityEngine.UI;
 using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
-using Unity.VisualScripting;
 
 public class GameController : MonoBehaviour
 {
@@ -24,11 +23,11 @@ public class GameController : MonoBehaviour
     public List<string> firebaseDiscardPile = new();
     public List<string> firebaseHand = new();
     private string serverId;
-    private int currentGameRound = 0; // Tracks the current round of the game
     private int playerIndex = 0; // Index of the current player
     private List<string> playerIds = new(); // List of player IDs
     private float turnDuration = 20f; // Time duration for each player's turn
     private float turnTimer = 0f; // Timer for the player's turn
+    private bool roundIsActive = false;
 
     private void Awake()
     {
@@ -39,17 +38,38 @@ public class GameController : MonoBehaviour
     private void Start()
     {
         StartCoroutine(SetStartDeck());
+        ListenForPlayerTurnChanges();
         StartCoroutine(InitializeGameData());
     }
     IEnumerator SetStartDeck()
     {
         deck = cards;
-        var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(deck);
+        firebaseDeck = deck.Select(card => card.cardId).ToList();
+        var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
         var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
         var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(firebaseHand);
         yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted);
     }
 
+    private void ListenForPlayerTurnChanges()
+    {
+        DatabaseReference playersRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players");
+        playersRef.ValueChanged += PlayersValueChanged;
+    }
+    private void OnDisable()
+    {
+        RemoveListeners();
+    }
+
+    private void OnDestroy()
+    {
+        RemoveListeners();
+    }
+    void RemoveListeners()
+    {
+        DatabaseReference playersRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players");
+        playersRef.ValueChanged -= PlayersValueChanged;
+    }
     private IEnumerator InitializeGameData()
     {
         // Get the list of player IDs and initialize their round counters in the database
@@ -67,30 +87,12 @@ public class GameController : MonoBehaviour
                     string id = childSnapshot.Key;
                     playerIds.Add(id);
                     // Initialize round counter for each player
-                    var setRoundCounter = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("roundCounter").SetValueAsync(0);
                     var setpPlayerHandNull = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("hand").SetValueAsync("");
                     var setTurnFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("isTurn").SetValueAsync(false);
                     var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(0);
-                    yield return new WaitUntil(() => setRoundCounter.IsCompleted && setpPlayerHandNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted);
+                    yield return new WaitUntil(() => setpPlayerHandNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted);
                 }
-
-                // Start the game once all player IDs are fetched
-                StartGame();
             }
-        }
-    }
-
-    private void StartGame()
-    {
-        // Start the game only if there are more than 1 player
-        if (playerIds.Count > 1)
-        {         
-            StartCoroutine(StartNextRound());
-        }
-        else
-        {
-            Debug.LogWarning("No players found. Cannot start the game.");
-            SceneManager.LoadScene("ServerScene");
         }
     }
     #endregion
@@ -98,6 +100,9 @@ public class GameController : MonoBehaviour
     #region StartRoundAndGiveUserCards
     IEnumerator StartNextRound()
     {
+        if (roundIsActive)
+            yield break;
+        roundIsActive = true;
         // Start the turn for the current player
         string currentPlayerId = playerIds[playerIndex];
         if (currentPlayerId == DataSaver.instance.userId)
@@ -108,10 +113,9 @@ public class GameController : MonoBehaviour
             StartCoroutine(ShuffleAndDealOwnCards(deck));
         }
         // Increment the current game round
-        currentGameRound++;
         if (currentPlayerId == DataSaver.instance.userId)
         {
-            var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(currentGameRound);
+            var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").GetValueAsync() + 1.ToString());
             yield return new WaitUntil(() => setGameRound.IsCompleted);
         }
 
@@ -150,22 +154,50 @@ public class GameController : MonoBehaviour
         if (currentPlayerId == DataSaver.instance.userId)
         {
             StartCoroutine(UpdateFirebase());
-            var setUserRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("roundCounter").SetValueAsync(currentGameRound);
             var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
-            yield return new WaitUntil(() => setUserRound.IsCompleted && removeUserTurn.IsCompleted);
+            yield return new WaitUntil(() => removeUserTurn.IsCompleted);
         }
 
-        if (currentPlayerId == DataSaver.instance.userId && (playerIndex + 1) % playerIds.Count == 0)
-        {
-            var setUserRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("round").SetValueAsync(DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("round").GetValueAsync() + 1.ToString());
-            yield return new WaitUntil(() => setUserRound.IsCompleted);
-        }
-         
         // Move to the next player
         playerIndex = (playerIndex + 1) % playerIds.Count;
-
+        roundIsActive = false;
         // Start the next player's turn
         StartCoroutine(StartNextRound());
+    }
+    private void PlayersValueChanged(object sender, ValueChangedEventArgs args)
+    {
+        // Method body remains the same
+        if (args.DatabaseError != null)
+        {
+            Debug.LogError("Database error: " + args.DatabaseError.Message);
+            return;
+        }
+
+        // Check if all players have isTurn set to false
+        bool allPlayersTurnFalse = true;
+
+        foreach (var playerSnapshot in args.Snapshot.Children)
+        {
+            // Check if the playerSnapshot contains the "userGameData" child node
+            if (playerSnapshot.Child("userGameData").Exists)
+            {
+                // Retrieve the isTurn value using Firebase SDK methods
+                bool isTurn = (bool)playerSnapshot.Child("userGameData").Child("isTurn").Value;
+
+                // If any player has isTurn set to true, set allPlayersTurnFalse to false
+                if (isTurn)
+                {
+                    allPlayersTurnFalse = false;
+                    break;
+                }
+            }
+        }
+
+        // If all players have isTurn set to false, start the next turn
+        if (allPlayersTurnFalse)
+        {
+            StartCoroutine(StartNextRound());
+        }
     }
 
     private IEnumerator ShuffleAndDealOwnCards(List<CardScriptableObject> deck)
@@ -209,12 +241,12 @@ public class GameController : MonoBehaviour
     }
     private void DisplayCardsDrawn()
     {
-        foreach(CardScriptableObject card in hand)
+        foreach(CardScriptableObject slot in hand)
         {
             var currentCard = Instantiate(card, handSlot);
-            currentCard.GetComponent<Image>().sprite = card.cardSprite;
-            currentCard.GetComponent<CardInfo>().power = card.power;
-            currentCard.GetComponent<CardInfo>().cardId = card.cardId;
+            currentCard.GetComponent<Image>().sprite = slot.cardSprite;
+            currentCard.GetComponent<CardInfo>().power = slot.power;
+            currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
         }
     }
     #endregion

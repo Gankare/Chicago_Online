@@ -20,6 +20,7 @@ public class WaitingRoomButtons : MonoBehaviour
     public bool countDownActive = false;
     private string previousUserData;
     private Dictionary<string, bool> previousReadyValues = new();
+    private bool updating = false;
 
     private void Start()
     {
@@ -254,10 +255,11 @@ public class WaitingRoomButtons : MonoBehaviour
 
     IEnumerator UpdatePlayers()
     {
-        if (this == null)
+        if (updating)
         {
             yield break;
         }
+        updating = true;
         //Reset values
         int players = 0;
         int playersReady = 0;
@@ -273,6 +275,7 @@ public class WaitingRoomButtons : MonoBehaviour
         if (playersInServer.Exception != null)
         {
             Debug.LogError($"Error getting players data: {playersInServer.Exception}");
+            updating = false;
             yield break;
         }
 
@@ -326,6 +329,7 @@ public class WaitingRoomButtons : MonoBehaviour
             }
         }
         amountOfPlayersText.text = $"{playersReady}/{players} players ready";
+        updating = false;
     }
 
     public void LeaveServer()
