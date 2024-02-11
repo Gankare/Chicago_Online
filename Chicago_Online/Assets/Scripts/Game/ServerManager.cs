@@ -251,7 +251,7 @@ public class ServerManager : MonoBehaviour
     }
     public IEnumerator CheckAllPlayersReady()
     {
-        while (true)
+        while (SceneManager.GetActiveScene().name != serverId)
         {
             var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
             yield return new WaitUntil(() => playersInServer.IsCompleted);

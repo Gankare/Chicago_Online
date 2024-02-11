@@ -8,7 +8,6 @@ using Firebase.Database;
 using UnityEngine.UI;
 using TMPro;
 using Firebase.Extensions;
-using UnityEngine.SceneManagement;
 
 public class GameController : MonoBehaviour
 {
@@ -22,11 +21,13 @@ public class GameController : MonoBehaviour
     public List<string> firebaseDeck = new();
     public List<string> firebaseDiscardPile = new();
     public List<string> firebaseHand = new();
+    public GameObject endTurnButton;
+    public TMP_Text turnTimerText;
+    private float turnTimer = 0f; // Timer for the player's turn
+    private float turnDuration = 20f; // Time duration for each player's turn
     private string serverId;
     private int playerIndex = 0; // Index of the current player
     private List<string> playerIds = new(); // List of player IDs
-    private float turnDuration = 20f; // Time duration for each player's turn
-    private float turnTimer = 0f; // Timer for the player's turn
     private bool roundIsActive = false;
 
     private void Awake()
@@ -81,7 +82,7 @@ public class GameController : MonoBehaviour
         // Check if the task was successful
         if (getPlayerIdsTask.IsCompleted)
         {
-            DataSnapshot snapshot = getPlayerIdsTask.Result;
+            DataSnapshot snapshot = getPlayerIdsTask.Result;    
             if (snapshot.Exists)
             {
                 foreach (var childSnapshot in snapshot.Children)
@@ -113,6 +114,8 @@ public class GameController : MonoBehaviour
             yield return new WaitUntil(() => setTurnTrue.IsCompleted);
             StartCoroutine(UpdateLocalDataFromFirebase());
             StartCoroutine(ShuffleAndDealOwnCards(deck));
+            endTurnButton.SetActive(true);
+            EnableAllButtons();
         }
         // Increment the current game round
         if (currentPlayerId == DataSaver.instance.userId)
@@ -136,6 +139,7 @@ public class GameController : MonoBehaviour
         {
             // Update the turn timer
             turnTimer -= Time.deltaTime;
+            turnTimerText.text = turnTimer.ToString();
 
             // Check if the turn timer has run out
             if (turnTimer <= 0f)
@@ -151,6 +155,9 @@ public class GameController : MonoBehaviour
 
     IEnumerator EndPlayerTurn()
     {
+        DisableAllButtons();
+        endTurnButton.SetActive(false);
+        turnTimerText.text = "";
         string currentPlayerId = playerIds[playerIndex];
         if (currentPlayerId == DataSaver.instance.userId)
         {
@@ -288,10 +295,34 @@ public class GameController : MonoBehaviour
             currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
         }
     }
+    private void DisableAllButtons()
+    {
+        // Find all buttons in the scene
+        Button[] buttons = FindObjectsOfType<Button>();
+
+        // Disable each button
+        foreach (Button button in buttons)
+        {
+            button.interactable = false;
+        }
+    }
+
+    // Function to enable all buttons
+    private void EnableAllButtons()
+    {
+        // Find all buttons in the scene
+        Button[] buttons = FindObjectsOfType<Button>();
+
+        // Enable each button
+        foreach (Button button in buttons)
+        {
+            button.interactable = true;
+        }
+    }
     #endregion
 
     #region UpdateFireBaseAndLocalCards
-        IEnumerator UpdateFirebase()
+    IEnumerator UpdateFirebase()
         {
             firebaseHand.Clear();
             foreach (CardScriptableObject card in hand)
@@ -411,6 +442,7 @@ public class GameController : MonoBehaviour
                 CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
                 hand.Remove(GetCardFromId(cardInfo.cardId));
                 Destroy(selectedCardObject);
+                turnTimer = 0;
             }
 
             // Clear the list of selected card objects
