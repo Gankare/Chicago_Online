@@ -8,6 +8,7 @@ using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System;
+using static UnityEditor.Experimental.GraphView.GraphView;
 
 public class WaitingRoomButtons : MonoBehaviour
 {
@@ -378,11 +379,18 @@ public class WaitingRoomButtons : MonoBehaviour
                     foreach (var playerSnapshot in snapshot.Children)
                     {
                         bool isReady = bool.Parse(playerSnapshot.Child("userData").Child("ready").Value.ToString());
-
+                      
                         if (!isReady)
                         {
                             anyPlayerUnready = true;
                             break;
+                        }
+                        else
+                        {
+                            foreach (Image card in readyCards)
+                            {
+                                card.color = Color.green;
+                            }
                         }
                     }
                 }

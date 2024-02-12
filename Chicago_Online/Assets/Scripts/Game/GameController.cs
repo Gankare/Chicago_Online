@@ -40,6 +40,7 @@ public class GameController : MonoBehaviour
     {
         StartCoroutine(SetStartDeck());
         StartCoroutine(InitializeGameData());
+        StartCoroutine(UpdateFirebase());
         Invoke(nameof(ListenForPlayerTurnChanges), 3);
     }
 
@@ -128,7 +129,8 @@ public class GameController : MonoBehaviour
         {
             var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
             yield return new WaitUntil(() => setTurnTrue.IsCompleted);
-            StartCoroutine(UpdateLocalDataFromFirebase());
+            Coroutine updateLocalCoroutine = StartCoroutine(UpdateLocalDataFromFirebase());
+            yield return updateLocalCoroutine;
             StartCoroutine(ShuffleAndDealOwnCards(deck));
             endTurnButton.SetActive(true);
             EnableAllButtons();
@@ -180,6 +182,7 @@ public class GameController : MonoBehaviour
         endTurnButton.SetActive(false);
         turnTimerText.text = "";
         string currentPlayerId = playerIds[playerIndex];
+        Debug.Log("EndTurn" + currentPlayerId.ToString());
         if (currentPlayerId == DataSaver.instance.userId)
         {
             StartCoroutine(CountAndSetValueOfHand());
@@ -260,6 +263,10 @@ public class GameController : MonoBehaviour
                         break;
                     }
                 }
+                else
+                {
+                    Debug.Log("User does not have data(isturn)");
+                }
             }
 
             // If all players have isTurn set to false, start the next turn
@@ -274,13 +281,13 @@ public class GameController : MonoBehaviour
         }
     }
 
-    private IEnumerator ShuffleAndDealOwnCards(List<CardScriptableObject> deck)
+    private IEnumerator ShuffleAndDealOwnCards(List<CardScriptableObject> deckToShuffle)
     {
         // Shuffle the deck locally
-        List<CardScriptableObject> shuffledDeck = ShuffleDeck(deck);
-
+        List<CardScriptableObject> shuffledDeck = ShuffleDeck(deckToShuffle);
+        deck = shuffledDeck;
         // Deal cards to the local player
-        DealCards(shuffledDeck);
+        DealCards(deck);
         DisplayCardsDrawn();
         yield return null;
     }
@@ -308,6 +315,7 @@ public class GameController : MonoBehaviour
             if (shuffledDeck.Count == 0)
             {
                 Debug.LogWarning("Deck is empty.");
+                //Discardpile into deck fix a function
                 return;
             }
 
@@ -357,136 +365,136 @@ public class GameController : MonoBehaviour
     #endregion
 
     #region UpdateFireBaseAndLocalCards
-    IEnumerator UpdateFirebase()
+IEnumerator UpdateFirebase()
+    {
+        firebaseHand.Clear();
+        foreach (CardScriptableObject card in hand)
+            firebaseHand.Add(card.cardId);
+
+        firebaseDiscardPile.Clear();
+        foreach (CardScriptableObject card in discardPile)
+            firebaseDiscardPile.Add(card.cardId);
+
+        firebaseDeck.Clear();
+        foreach (CardScriptableObject card in deck)
+            firebaseDeck.Add(card.cardId);
+
+        var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(firebaseHand);
+        var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
+        var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
+        yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted);
+    }
+    private IEnumerator UpdateLocalDataFromFirebase()
+    {
+        // Clear the local lists
+        deck.Clear();
+        hand.Clear();
+        discardPile.Clear();
+
+        // Retrieve card IDs from Firebase and convert them back to CardScriptableObject instances
+        var getServerDeckTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").GetValueAsync();
+        var getServerDiscardPileTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").GetValueAsync();
+        var getUserHandTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").GetValueAsync();
+
+        // Wait until all data retrieval tasks are completed
+        yield return new WaitUntil(() => getServerDeckTask.IsCompleted && getServerDiscardPileTask.IsCompleted && getUserHandTask.IsCompleted);
+
+        if (getServerDeckTask.Exception != null || getServerDiscardPileTask.Exception != null || getUserHandTask.Exception != null)
         {
-            firebaseHand.Clear();
-            foreach (CardScriptableObject card in hand)
-                firebaseHand.Add(card.cardId);
-
-            firebaseDiscardPile.Clear();
-            foreach (CardScriptableObject card in discardPile)
-                firebaseDiscardPile.Add(card.cardId);
-
-            firebaseDeck.Clear();
-            foreach (CardScriptableObject card in deck)
-                firebaseDeck.Add(card.cardId);
-
-            var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(firebaseHand);
-            var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
-            var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
-            yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted);
+            Debug.LogError("Error retrieving data from Firebase.");
+            yield break; //may have to remove this if it thinks that its a error that it returns a null
         }
-        private IEnumerator UpdateLocalDataFromFirebase()
+
+        DataSnapshot userHandSnapshot = getUserHandTask.Result;
+        DataSnapshot serverDiscardPileSnapshot = getServerDiscardPileTask.Result;
+        DataSnapshot serverDeckSnapshot = getServerDeckTask.Result;
+
+        if (userHandSnapshot != null)
         {
-            // Clear the local lists
-            deck.Clear();
-            hand.Clear();
-            discardPile.Clear();
-
-            // Retrieve card IDs from Firebase and convert them back to CardScriptableObject instances
-            var getServerDeckTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").GetValueAsync();
-            var getServerDiscardPileTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").GetValueAsync();
-            var getUserHandTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").GetValueAsync();
-
-            // Wait until all data retrieval tasks are completed
-            yield return new WaitUntil(() => getServerDeckTask.IsCompleted && getServerDiscardPileTask.IsCompleted && getUserHandTask.IsCompleted);
-
-            if (getServerDeckTask.Exception != null || getServerDiscardPileTask.Exception != null || getUserHandTask.Exception != null)
+            foreach (DataSnapshot cardSnapshot in userHandSnapshot.Children)
             {
-                Debug.LogError("Error retrieving data from Firebase.");
-                yield break; //may have to remove this if it thinks that its a error that it returns a null
-            }
-
-            DataSnapshot userHandSnapshot = getUserHandTask.Result;
-            DataSnapshot serverDiscardPileSnapshot = getServerDiscardPileTask.Result;
-            DataSnapshot serverDeckSnapshot = getServerDeckTask.Result;
-
-            if (userHandSnapshot != null)
-            {
-                foreach (DataSnapshot cardSnapshot in userHandSnapshot.Children)
+                string cardId = cardSnapshot.Value.ToString();
+                CardScriptableObject card = GetCardFromId(cardId);
+                if (card != null)
                 {
-                    string cardId = cardSnapshot.Value.ToString();
-                    CardScriptableObject card = GetCardFromId(cardId);
-                    if (card != null)
-                    {
-                        hand.Add(card);
-                    }
-                }
-            }
-            if (serverDiscardPileSnapshot != null)
-            {
-                foreach (DataSnapshot cardSnapshot in serverDiscardPileSnapshot.Children)
-                {
-                    string cardId = cardSnapshot.Value.ToString();
-                    CardScriptableObject card = GetCardFromId(cardId);
-                    if (card != null)
-                    {
-                        discardPile.Add(card);
-                    }
-                }
-            }
-            if (serverDeckSnapshot != null)
-            {
-                foreach (DataSnapshot cardSnapshot in serverDeckSnapshot.Children)
-                {
-                    string cardId = cardSnapshot.Value.ToString();
-                    CardScriptableObject card = GetCardFromId(cardId);
-                    if (card != null)
-                    {
-                        deck.Add(card);
-                    }
+                    hand.Add(card);
                 }
             }
         }
-
-        private CardScriptableObject GetCardFromId(string cardId)
+        if (serverDiscardPileSnapshot != null)
         {
-            // Iterate through all card objects to find the one with the matching cardId
-            foreach (CardScriptableObject card in cards)
+            foreach (DataSnapshot cardSnapshot in serverDiscardPileSnapshot.Children)
             {
-                if (card.cardId == cardId)
+                string cardId = cardSnapshot.Value.ToString();
+                CardScriptableObject card = GetCardFromId(cardId);
+                if (card != null)
                 {
-                    return card;
+                    discardPile.Add(card);
                 }
             }
-            Debug.LogError("Card with ID " + cardId + " not found.");
-            return null;
         }
-        #endregion
+        if (serverDeckSnapshot != null)
+        {
+            foreach (DataSnapshot cardSnapshot in serverDeckSnapshot.Children)
+            {
+                string cardId = cardSnapshot.Value.ToString();
+                CardScriptableObject card = GetCardFromId(cardId);
+                if (card != null)
+                {
+                    deck.Add(card);
+                }
+            }
+        }
+    }
+    #endregion
 
     #region PlayerCardActions
-        public void SelectCardToThrow(GameObject cardObject)
+    public void SelectCardToThrow(GameObject cardObject)
+    {
+        // If the card is already selected, deselect it
+        if (selectedCardObjects.Contains(cardObject))
         {
-            // If the card is already selected, deselect it
-            if (selectedCardObjects.Contains(cardObject))
-            {
-                selectedCardObjects.Remove(cardObject);
-                cardObject.GetComponent<SpriteRenderer>().color = Color.white;
-            }
-            else // If the card is not selected, select it
-            {
-                selectedCardObjects.Add(cardObject);
-                cardObject.GetComponent<SpriteRenderer>().color = Color.red;
-            }
+            selectedCardObjects.Remove(cardObject);
+            cardObject.GetComponent<SpriteRenderer>().color = Color.white;
         }
-        public void ThrowCards()
+        else // If the card is not selected, select it
         {
-            // Remove all selected cards from the hand list and destroy their corresponding GameObjects
-            foreach (GameObject selectedCardObject in selectedCardObjects)
-            {
-                CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
-                hand.Remove(GetCardFromId(cardInfo.cardId));
-                Destroy(selectedCardObject);
-                turnTimer = 0;
-            }
+            selectedCardObjects.Add(cardObject);
+            cardObject.GetComponent<SpriteRenderer>().color = Color.red;
+        }
+    }
+    public void ThrowCards()
+    {
+        // Remove all selected cards from the hand list and destroy their corresponding GameObjects
+        foreach (GameObject selectedCardObject in selectedCardObjects)
+        {
+            CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
+            hand.Remove(GetCardFromId(cardInfo.cardId));
+            discardPile.Add(GetCardFromId(cardInfo.cardId));
+            Destroy(selectedCardObject);
+            turnTimer = 0;
+        }
 
-            // Clear the list of selected card objects
-            selectedCardObjects.Clear();
+        // Clear the list of selected card objects
+        selectedCardObjects.Clear();
+    }
+    private CardScriptableObject GetCardFromId(string cardId)
+    {
+        // Iterate through all card objects to find the one with the matching cardId
+        foreach (CardScriptableObject card in cards)
+        {
+            if (card.cardId == cardId)
+            {
+                return card;
+            }
         }
-        #endregion
+        Debug.LogError("Card with ID " + cardId + " not found.");
+        return null;
+    }
+    #endregion
 
     #region CountValueOfHand
-        private IEnumerator CountAndSetValueOfHand()
+    private IEnumerator CountAndSetValueOfHand()
         {
             // Retrieve the player's cards from the database
             List<CardScriptableObject> playerCards = GetPlayerCards();
