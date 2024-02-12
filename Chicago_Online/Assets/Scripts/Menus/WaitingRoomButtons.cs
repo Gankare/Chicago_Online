@@ -8,7 +8,6 @@ using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System;
-using static UnityEditor.Experimental.GraphView.GraphView;
 
 public class WaitingRoomButtons : MonoBehaviour
 {
