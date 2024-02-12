@@ -12,6 +12,7 @@ public class Player : MonoBehaviour
     void Start()
     {
         CheckIfUserExistsInServer(DataSaver.instance.userId);
+        StartCoroutine(UpdatePlayerActivity());
         StartCoroutine(CheckActivityCoroutine());
     }
     private void OnEnable()

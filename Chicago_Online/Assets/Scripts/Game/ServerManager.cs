@@ -52,7 +52,6 @@ public class ServerManager : MonoBehaviour
     public void PlayerConnected(string userId)
     {
         StartCoroutine(UpdatePlayerStatus(userId, true));
-        StartCoroutine(Player.instance.UpdatePlayerActivity());
     }
 
     public void PlayerDisconnected(string userId)
