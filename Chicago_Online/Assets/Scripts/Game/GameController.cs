@@ -23,11 +23,11 @@ public class GameController : MonoBehaviour
     public List<string> firebaseHand = new();
     public GameObject endTurnButton;
     public TMP_Text turnTimerText;
+    public List<string> playerIds = new(); // List of player IDs
     private float turnTimer = 0f; // Timer for the player's turn
     private float turnDuration = 20f; // Time duration for each player's turn
     private string serverId;
     private int playerIndex = 0; // Index of the current player
-    private List<string> playerIds = new(); // List of player IDs
     private bool roundIsActive = false;
 
     private void Awake()
@@ -39,9 +39,10 @@ public class GameController : MonoBehaviour
     private void Start()
     {
         StartCoroutine(SetStartDeck());
-        ListenForPlayerTurnChanges();
         StartCoroutine(InitializeGameData());
+        Invoke(nameof(ListenForPlayerTurnChanges), 3);
     }
+
     IEnumerator SetStartDeck()
     {
         deck = cards;
@@ -70,7 +71,7 @@ public class GameController : MonoBehaviour
     }
     void RemoveListeners()
     {
-        DatabaseReference playersRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players");
+        DatabaseReference playersRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child("userGameData").Child("isTurn");
         playersRef.ValueChanged -= PlayersValueChanged;
     }
     private IEnumerator InitializeGameData()
@@ -106,6 +107,21 @@ public class GameController : MonoBehaviour
         if (roundIsActive)
             yield break;
         roundIsActive = true;
+
+        // Check if playerIds contains any elements
+        if (playerIds.Count == 0)
+        {
+            Debug.LogWarning("No player IDs found.");
+            yield break; // Exit the coroutine or handle the situation accordingly
+        }
+
+        // Ensure playerIndex is within bounds of playerIds list
+        if (playerIndex >= playerIds.Count)
+        {
+            // Reset playerIndex to 0 to loop back to the beginning of the list
+            playerIndex = 0;
+        }
+
         // Start the turn for the current player
         string currentPlayerId = playerIds[playerIndex];
         if (currentPlayerId == DataSaver.instance.userId)
@@ -129,6 +145,7 @@ public class GameController : MonoBehaviour
         StartCoroutine(PlayerTurnTimer());
     }
 
+
     private IEnumerator PlayerTurnTimer()
     {
         // Set the initial turn timer value
@@ -139,7 +156,9 @@ public class GameController : MonoBehaviour
         {
             // Update the turn timer
             turnTimer -= Time.deltaTime;
-            turnTimerText.text = turnTimer.ToString();
+            int remainingSeconds = Mathf.RoundToInt(turnTimer);
+            turnTimerText.text = remainingSeconds.ToString();
+
 
             // Check if the turn timer has run out
             if (turnTimer <= 0f)
@@ -155,6 +174,8 @@ public class GameController : MonoBehaviour
 
     IEnumerator EndPlayerTurn()
     {
+        DealCards(deck);
+        DisplayCardsDrawn();
         DisableAllButtons();
         endTurnButton.SetActive(false);
         turnTimerText.text = "";
@@ -212,37 +233,44 @@ public class GameController : MonoBehaviour
 
     private void PlayersValueChanged(object sender, ValueChangedEventArgs args)
     {
-        // Method body remains the same
-        if (args.DatabaseError != null)
+        if (args != null)
         {
-            Debug.LogError("Database error: " + args.DatabaseError.Message);
-            return;
-        }
-
-        // Check if all players have isTurn set to false
-        bool allPlayersTurnFalse = true;
-
-        foreach (var playerSnapshot in args.Snapshot.Children)
-        {
-            // Check if the playerSnapshot contains the "userGameData" child node
-            if (playerSnapshot.Child("userGameData").Exists)
+            // Method body remains the same
+            if (args.DatabaseError != null)
             {
-                // Retrieve the isTurn value using Firebase SDK methods
-                bool isTurn = (bool)playerSnapshot.Child("userGameData").Child("isTurn").Value;
+                Debug.LogError("Database error: " + args.DatabaseError.Message);
+                return;
+            }
 
-                // If any player has isTurn set to true, set allPlayersTurnFalse to false
-                if (isTurn)
+            // Check if all players have isTurn set to false
+            bool allPlayersTurnFalse = true;
+
+            foreach (var playerSnapshot in args.Snapshot.Children)
+            {
+                // Check if the playerSnapshot contains the "userGameData" child node
+                if (playerSnapshot.Child("userGameData").Exists)
                 {
-                    allPlayersTurnFalse = false;
-                    break;
+                    // Retrieve the isTurn value using Firebase SDK methods
+                    bool isTurn = (bool)playerSnapshot.Child("userGameData").Child("isTurn").Value;
+
+                    // If any player has isTurn set to true, set allPlayersTurnFalse to false
+                    if (isTurn)
+                    {
+                        allPlayersTurnFalse = false;
+                        break;
+                    }
                 }
             }
-        }
 
-        // If all players have isTurn set to false, start the next turn
-        if (allPlayersTurnFalse)
+            // If all players have isTurn set to false, start the next turn
+            if (allPlayersTurnFalse)
+            {
+                StartCoroutine(StartNextRound());
+            }
+        }
+        else
         {
-            StartCoroutine(StartNextRound());
+            Debug.LogError("Value change event arguments are null.");
         }
     }
 
@@ -274,9 +302,15 @@ public class GameController : MonoBehaviour
 
     private void DealCards(List<CardScriptableObject> shuffledDeck)
     {
-        int cardsToDeal = 5; // Adjust as needed
-        for (int i = 0; i < cardsToDeal; i++)
+        int cardsNeeded = 5 - hand.Count; // Calculate how many cards are needed to reach 5
+        for (int i = 0; i < cardsNeeded; i++)
         {
+            if (shuffledDeck.Count == 0)
+            {
+                Debug.LogWarning("Deck is empty.");
+                return;
+            }
+
             // Draw a card from the top of the deck
             CardScriptableObject drawnCard = shuffledDeck[0];
             // Add the card ID to the player's hand
@@ -285,6 +319,7 @@ public class GameController : MonoBehaviour
             shuffledDeck.RemoveAt(0);
         }
     }
+
     private void DisplayCardsDrawn()
     {
         foreach (CardScriptableObject slot in hand)
