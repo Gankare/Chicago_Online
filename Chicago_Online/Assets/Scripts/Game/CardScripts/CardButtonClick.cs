@@ -12,16 +12,10 @@ public class CardButtonClick : MonoBehaviour
     {
         // Find the GameController script in the scene
         gameController = FindObjectOfType<GameController>();
-
-        // Get the Button component attached to this GameObject
-        Button button = GetComponent<Button>();
-
-        // Add a listener for the button click event
-        button.onClick.AddListener(ThrowCard);
     }
 
     // Function to throw the card when the button is clicked
-    void ThrowCard()
+    public void ThrowCard()
     {
         // Check if the GameController script is found
         if (gameController != null)
