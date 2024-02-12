@@ -9,24 +9,6 @@ using System;
 
 public class Player : MonoBehaviour
 {
-    #region Singleton
-    public static Player instance;
-
-    private void Awake()
-    {
-        if (instance == null)
-        {
-            instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-            return;
-        }
-    }
-    #endregion
-
     void Start()
     {
         CheckIfUserExistsInServer(DataSaver.instance.userId);
