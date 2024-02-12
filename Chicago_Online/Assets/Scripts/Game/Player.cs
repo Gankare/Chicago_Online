@@ -17,26 +17,15 @@ public class Player : MonoBehaviour
     private void OnEnable()
     {
         ServerManager.instance.PlayerConnected(DataSaver.instance.userId);
-        SceneManager.sceneLoaded += OnSceneLoaded;
     }
     private void OnDestroy()
     {
         ServerManager.instance.PlayerDisconnected(DataSaver.instance.userId);
-        SceneManager.sceneLoaded -= OnSceneLoaded;
     } 
     private void OnDisable()
     {
         ServerManager.instance.PlayerDisconnected(DataSaver.instance.userId);
-        SceneManager.sceneLoaded -= OnSceneLoaded;
     }
-    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        if (scene.name == "MenuScene" || scene.name == "ServerScene" || scene.name == ServerManager.instance.serverId)
-        {
-            Destroy(gameObject);
-        }
-    }
-
     void CheckIfUserExistsInServer(string userId)
     {
         var serverReference = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").Child(userId);
