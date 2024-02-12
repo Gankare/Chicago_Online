@@ -49,7 +49,7 @@ public class Player : MonoBehaviour
     }
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == "MenuScene" || scene.name == "ServerScene")
+        if (scene.name == "MenuScene" || scene.name == "ServerScene" || scene.name == ServerManager.instance.serverId)
         {
             Destroy(gameObject);
         }

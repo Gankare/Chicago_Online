@@ -138,7 +138,19 @@ public class GameController : MonoBehaviour
         // Increment the current game round
         if (currentPlayerId == DataSaver.instance.userId)
         {
-            var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").GetValueAsync() + 1.ToString());
+            var getLastGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").GetValueAsync();
+            yield return new WaitUntil(() => getLastGameRound.IsCompleted);
+            // Parse the current value to an integer
+            int currentValue = int.Parse(getLastGameRound.Result.ToString());
+
+            // Increment the value
+            int newValue = currentValue + 1;
+
+            // Convert the new value to a string
+            string newValueAsString = newValue.ToString();
+
+            // Set the new string value back to the database
+            var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(newValueAsString);
             yield return new WaitUntil(() => setGameRound.IsCompleted);
         }
 
@@ -455,12 +467,12 @@ IEnumerator UpdateFirebase()
         if (selectedCardObjects.Contains(cardObject))
         {
             selectedCardObjects.Remove(cardObject);
-            cardObject.GetComponent<SpriteRenderer>().color = Color.white;
+            cardObject.GetComponent<Image>().color = Color.white;
         }
         else // If the card is not selected, select it
         {
             selectedCardObjects.Add(cardObject);
-            cardObject.GetComponent<SpriteRenderer>().color = Color.red;
+            cardObject.GetComponent<Image>().color = Color.red;
         }
     }
     public void ThrowCards()
