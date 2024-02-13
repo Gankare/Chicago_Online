@@ -213,14 +213,26 @@ public class GameController : MonoBehaviour
                     // If so, call CountAndSetValueOfHand coroutine
                     StartCoroutine(UpdateScoreboard());
                     var resetGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(0.ToString());
-                    var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").GetValueAsync() + 1.ToString());
-                    yield return new WaitUntil(() => resetGameRound.IsCompleted && setScoreRound.IsCompleted);
+                    var getLastScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").GetValueAsync();
+                    yield return new WaitUntil(() => getLastScoreRound.IsCompleted && resetGameRound.IsCompleted);
+                    // Parse the current value to an integer
+                    int currentScoreValue = int.Parse(getLastScoreRound.Result.ToString());
+
+                    // Increment the value
+                    int newScoreValue = currentScoreValue + 1;
+
+                    // Convert the new value to a string
+                    string newValueAsString = newScoreValue.ToString();
+
+                    // Set the new string value back to the database
+                    var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("ScoreGameRound").SetValueAsync(newValueAsString);
+                    yield return new WaitUntil(() => setScoreRound.IsCompleted);
 
                     DatabaseReference gameScoreRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
-                    var getScoreRoundTask = gameDataRef.Child("scoreGameRound").GetValueAsync();
-                    yield return new WaitUntil(() => getScoreRoundTask.IsCompleted);
+                    var newGetScoreRoundTask = gameDataRef.Child("scoreGameRound").GetValueAsync();
+                    yield return new WaitUntil(() => newGetScoreRoundTask.IsCompleted);
 
-                    if (getScoreRoundTask.Result.Exists)
+                    if (newGetScoreRoundTask.Result.Exists)
                     {
                         int currentScoreRound = int.Parse(getGameRoundTask.Result.Value.ToString());
                         if (currentScoreRound == 3)
