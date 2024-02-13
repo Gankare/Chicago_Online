@@ -12,18 +12,18 @@ using Firebase.Extensions;
 public class GameController : MonoBehaviour
 {
     public GameObject card;
-    public List<GameObject> selectedCardObjects = new();
-    public Transform handSlot;
-    public List<CardScriptableObject> cards = new();
+    public List<CardScriptableObject> allCards = new();
     public List<CardScriptableObject> deck = new();
     public List<CardScriptableObject> discardPile = new();
     public List<CardScriptableObject> hand = new();
-    public List<string> firebaseDeck = new();
     public List<string> firebaseDiscardPile = new();
+    public List<string> firebaseDeck = new();
     public List<string> firebaseHand = new();
-    public GameObject endTurnButton;
-    public TMP_Text turnTimerText;
     public List<string> playerIds = new(); // List of player IDs
+    public List<GameObject> selectedCardObjects = new();
+    public Transform handSlot;
+    public TMP_Text turnTimerText;
+    public GameObject endTurnButton;
     private float turnTimer = 0f; // Timer for the player's turn
     private float turnDuration = 20f; // Time duration for each player's turn
     private string serverId;
@@ -46,13 +46,13 @@ public class GameController : MonoBehaviour
 
     IEnumerator SetStartDeck()
     {
-        deck = cards;
+        deck = allCards;
         firebaseDeck = deck.Select(card => card.cardId).ToList();
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
         var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
         var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(firebaseHand);
-        var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(0.ToString());
-        var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(0.ToString());
+        var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(0);
+        var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(0);
         yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted && setGameRound.IsCompleted && setScoreRound.IsCompleted);
     }
 
@@ -210,9 +210,9 @@ public class GameController : MonoBehaviour
                 // Check if the current game round is divisible by the number of players, if all players have 
                 if (currentGameRound % playerCount == 0)
                 {
-                    // If so, call CountAndSetValueOfHand coroutine
-                    StartCoroutine(UpdateScoreboard());
-                    var resetGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(0.ToString());
+                    // If so, call UpdateScoreBoard coroutine
+                    StartCoroutine(UpdateScoreBoard());
+                    var resetGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(0);
                     var getLastScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").GetValueAsync();
                     yield return new WaitUntil(() => getLastScoreRound.IsCompleted && resetGameRound.IsCompleted);
                     // Parse the current value to an integer
@@ -505,7 +505,7 @@ IEnumerator UpdateFirebase()
     private CardScriptableObject GetCardFromId(string cardId)
     {
         // Iterate through all card objects to find the one with the matching cardId
-        foreach (CardScriptableObject card in cards)
+        foreach (CardScriptableObject card in allCards)
         {
             if (card.cardId == cardId)
             {
@@ -521,7 +521,7 @@ IEnumerator UpdateFirebase()
     private IEnumerator CountAndSetValueOfHand()
         {
             // Retrieve the player's cards from the database
-            List<CardScriptableObject> playerCards = GetPlayerCards();
+            List<CardScriptableObject> playerCards = GetPlayerCards(); //Get players hand
 
             // Calculate the score for the player's hand
             int score = CalculateScore(playerCards);
@@ -732,7 +732,7 @@ IEnumerator UpdateFirebase()
     });
         }
 
-        private IEnumerator UpdateScoreboard()
+        private IEnumerator UpdateScoreBoard()
         {
             // Retrieve hand values of all players from the database
             Dictionary<string, int> playerHandValues = new Dictionary<string, int>();

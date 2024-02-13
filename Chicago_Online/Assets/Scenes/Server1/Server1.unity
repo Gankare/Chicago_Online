@@ -236,35 +236,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   card: {fileID: 7402463326106438026, guid: 2e6ef58e7d8420040a0462db9a42db9f, type: 3}
-  selectedCardObjects: []
-  handSlot: {fileID: 735726137}
-  cards:
-  - {fileID: 11400000, guid: 401fa00d3151aae4e86ccdfae6d7c7d6, type: 2}
-  - {fileID: 11400000, guid: 323c340582ed53743b42d21488942957, type: 2}
-  - {fileID: 11400000, guid: 409504409a1d2764488f51ef27f20c3e, type: 2}
-  - {fileID: 11400000, guid: c51d4c0fb6bee6044820be7cd5c07a8e, type: 2}
-  - {fileID: 11400000, guid: b6ddc584f83d9684782c6377c2b2c881, type: 2}
-  - {fileID: 11400000, guid: 4c38e303441a54649a7646a4ab38aaef, type: 2}
-  - {fileID: 11400000, guid: e280200e865b87c42a2395c05c83b7f2, type: 2}
-  - {fileID: 11400000, guid: 6910c2ccc688a0f43af5f5a44cf9397f, type: 2}
-  - {fileID: 11400000, guid: 8032beb7360d52b4a818e2cc7849c5cd, type: 2}
-  - {fileID: 11400000, guid: 1fdbeb388976c694d8e58bf981bf3c3e, type: 2}
-  - {fileID: 11400000, guid: baad10143bbf1cf42ab189fc7015d0ad, type: 2}
-  - {fileID: 11400000, guid: d3be0a7d808fa7c49aede7685ac632f6, type: 2}
-  - {fileID: 11400000, guid: 12aa7c2f459a3604981b9543bf26e1ad, type: 2}
-  - {fileID: 11400000, guid: 15f7689213f44714fa18251a0882e3a6, type: 2}
-  - {fileID: 11400000, guid: c91a93dbc9b1b26478c769592596e1d3, type: 2}
-  - {fileID: 11400000, guid: 1d9ecfe05cc5f4e498af0a2a2bba76de, type: 2}
-  - {fileID: 11400000, guid: 9e6b8eb232cc1eb489d15b612a2a0071, type: 2}
-  - {fileID: 11400000, guid: 20e715ee23649f143bae946195578326, type: 2}
-  - {fileID: 11400000, guid: 1e1685d4a40c9304e9de84f43d4a7b2c, type: 2}
-  - {fileID: 11400000, guid: 35ad738a56347054e902950e69351444, type: 2}
-  - {fileID: 11400000, guid: adf223e45b6c4cd468d837764bfa4806, type: 2}
-  - {fileID: 11400000, guid: 08ba1fb835c5c1e48ae62e5a7dcd9db3, type: 2}
-  - {fileID: 11400000, guid: a05ef0cede09494478956a57fb82476c, type: 2}
-  - {fileID: 11400000, guid: 14620977d01d3bc418e95e8878fabf9a, type: 2}
-  - {fileID: 11400000, guid: 79efd4ca956584b48a1ce4d77c372a3c, type: 2}
-  - {fileID: 11400000, guid: e2d72cf96fe0b2d4b87f3a0b9a5b53b5, type: 2}
+  allCards:
   - {fileID: 11400000, guid: a6f6e14c8da2a394b80e9ead6838334a, type: 2}
   - {fileID: 11400000, guid: 228a0938030891a40ad93f4b5a1ea368, type: 2}
   - {fileID: 11400000, guid: 476a7c3dedd8562498aee44fc2eb533e, type: 2}
@@ -291,15 +263,43 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 31c2e6a6a204f4349a0548a91e61a9ff, type: 2}
   - {fileID: 11400000, guid: 40ea957924320eb4d8691549ffc4e96a, type: 2}
   - {fileID: 11400000, guid: b173c7b94a5bf6c4797a40a177394014, type: 2}
+  - {fileID: 11400000, guid: 15f7689213f44714fa18251a0882e3a6, type: 2}
+  - {fileID: 11400000, guid: c91a93dbc9b1b26478c769592596e1d3, type: 2}
+  - {fileID: 11400000, guid: 1d9ecfe05cc5f4e498af0a2a2bba76de, type: 2}
+  - {fileID: 11400000, guid: 9e6b8eb232cc1eb489d15b612a2a0071, type: 2}
+  - {fileID: 11400000, guid: 20e715ee23649f143bae946195578326, type: 2}
+  - {fileID: 11400000, guid: 1e1685d4a40c9304e9de84f43d4a7b2c, type: 2}
+  - {fileID: 11400000, guid: 35ad738a56347054e902950e69351444, type: 2}
+  - {fileID: 11400000, guid: adf223e45b6c4cd468d837764bfa4806, type: 2}
+  - {fileID: 11400000, guid: 08ba1fb835c5c1e48ae62e5a7dcd9db3, type: 2}
+  - {fileID: 11400000, guid: a05ef0cede09494478956a57fb82476c, type: 2}
+  - {fileID: 11400000, guid: 14620977d01d3bc418e95e8878fabf9a, type: 2}
+  - {fileID: 11400000, guid: 79efd4ca956584b48a1ce4d77c372a3c, type: 2}
+  - {fileID: 11400000, guid: e2d72cf96fe0b2d4b87f3a0b9a5b53b5, type: 2}
+  - {fileID: 11400000, guid: 401fa00d3151aae4e86ccdfae6d7c7d6, type: 2}
+  - {fileID: 11400000, guid: 323c340582ed53743b42d21488942957, type: 2}
+  - {fileID: 11400000, guid: 409504409a1d2764488f51ef27f20c3e, type: 2}
+  - {fileID: 11400000, guid: c51d4c0fb6bee6044820be7cd5c07a8e, type: 2}
+  - {fileID: 11400000, guid: b6ddc584f83d9684782c6377c2b2c881, type: 2}
+  - {fileID: 11400000, guid: 4c38e303441a54649a7646a4ab38aaef, type: 2}
+  - {fileID: 11400000, guid: e280200e865b87c42a2395c05c83b7f2, type: 2}
+  - {fileID: 11400000, guid: 6910c2ccc688a0f43af5f5a44cf9397f, type: 2}
+  - {fileID: 11400000, guid: 8032beb7360d52b4a818e2cc7849c5cd, type: 2}
+  - {fileID: 11400000, guid: 1fdbeb388976c694d8e58bf981bf3c3e, type: 2}
+  - {fileID: 11400000, guid: baad10143bbf1cf42ab189fc7015d0ad, type: 2}
+  - {fileID: 11400000, guid: d3be0a7d808fa7c49aede7685ac632f6, type: 2}
+  - {fileID: 11400000, guid: 12aa7c2f459a3604981b9543bf26e1ad, type: 2}
   deck: []
   discardPile: []
   hand: []
-  firebaseDeck: []
   firebaseDiscardPile: []
+  firebaseDeck: []
   firebaseHand: []
-  endTurnButton: {fileID: 1636866828}
-  turnTimerText: {fileID: 797225571}
   playerIds: []
+  selectedCardObjects: []
+  handSlot: {fileID: 735726137}
+  turnTimerText: {fileID: 797225571}
+  endTurnButton: {fileID: 1636866828}
 --- !u!1 &658386573
 GameObject:
   m_ObjectHideFlags: 0
