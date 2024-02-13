@@ -19,14 +19,6 @@ public class Player : MonoBehaviour
     {
         ServerManager.instance.PlayerConnected(DataSaver.instance.userId);
     }
-    private void OnDestroy()
-    {
-        ServerManager.instance.PlayerDisconnected(DataSaver.instance.userId);
-    } 
-    private void OnDisable()
-    {
-        ServerManager.instance.PlayerDisconnected(DataSaver.instance.userId);
-    }
     void CheckIfUserExistsInServer(string userId)
     {
         var serverReference = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").Child(userId);

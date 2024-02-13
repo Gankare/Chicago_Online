@@ -41,6 +41,11 @@ public class ServerManager : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
+        PlayerDisconnected(DataSaver.instance.userId);
+    }
+    private void OnDestroy()
+    {
+        PlayerDisconnected(DataSaver.instance.userId);
     }
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
