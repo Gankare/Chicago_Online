@@ -12,6 +12,12 @@ using Firebase.Extensions;
 public class GameController : MonoBehaviour
 {
     public GameObject card;
+    public enum gamestate
+    {
+        distributionOfCards,
+        gambit
+    }
+    public int currentGameState;
     public List<CardScriptableObject> allCards = new();
     public List<CardScriptableObject> deck = new();
     public List<CardScriptableObject> discardPile = new();
@@ -46,6 +52,7 @@ public class GameController : MonoBehaviour
 
     IEnumerator SetStartDeck()
     {
+        currentGameState = (int)gamestate.distributionOfCards;
         deck = allCards.ToList(); // Create a copy of allCards
         firebaseDeck = deck.Select(card => card.cardId).ToList();
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
@@ -108,7 +115,6 @@ public class GameController : MonoBehaviour
         if (roundIsActive)
             yield break;
         roundIsActive = true;
-
         // Check if playerIds contains any elements
         if (playerIds.Count == 0)
         {
@@ -125,53 +131,65 @@ public class GameController : MonoBehaviour
 
         // Start the turn for the current player
         string currentPlayerId = playerIds[playerIndex];
-        if (currentPlayerId == DataSaver.instance.userId)
-        {
-            var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
-            yield return new WaitUntil(() => setTurnTrue.IsCompleted);
-            Coroutine updateLocalCoroutine = StartCoroutine(UpdateLocalDataFromFirebase());
-            yield return updateLocalCoroutine;
-            StartCoroutine(ShuffleAndDealOwnCards(deck));
-            endTurnButton.SetActive(true);
-            EnableAllButtons();
-        }
-        if (currentPlayerId == DataSaver.instance.userId)
-        {
-            var getGameData = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").GetValueAsync();
-            yield return new WaitUntil(() => getGameData.IsCompleted);
 
-            // Check if getGameData.Result is not null
-            if (getGameData.Result != null)
+        if (currentGameState == (int)gamestate.distributionOfCards)
+        {
+            #region GiveCards
+            if (currentPlayerId == DataSaver.instance.userId)
             {
-                // Retrieve the value of currentGameRound from the DataSnapshot
-                var currentGameRoundSnapshot = getGameData.Result.Child("currentGameRound");
-                if (currentGameRoundSnapshot != null)
+                var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
+                yield return new WaitUntil(() => setTurnTrue.IsCompleted);
+                Coroutine updateLocalCoroutine = StartCoroutine(UpdateLocalDataFromFirebase());
+                yield return updateLocalCoroutine;
+                StartCoroutine(ShuffleAndDealOwnCards(deck));
+                endTurnButton.SetActive(true);
+                EnableAllButtons();
+            }
+            if (currentPlayerId == DataSaver.instance.userId)
+            {
+                var getGameData = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").GetValueAsync();
+                yield return new WaitUntil(() => getGameData.IsCompleted);
+
+                // Check if getGameData.Result is not null
+                if (getGameData.Result != null)
                 {
-                    string currentValue = currentGameRoundSnapshot.Value.ToString();
+                    // Retrieve the value of currentGameRound from the DataSnapshot
+                    var currentGameRoundSnapshot = getGameData.Result.Child("currentGameRound");
+                    if (currentGameRoundSnapshot != null)
+                    {
+                        string currentValue = currentGameRoundSnapshot.Value.ToString();
 
-                    // Increment the current value
-                    int newValue = int.Parse(currentValue) + 1;
+                        // Increment the current value
+                        int newValue = int.Parse(currentValue) + 1;
 
-                    // Convert the new value to a string
-                    string newValueAsString = newValue.ToString();
+                        // Convert the new value to a string
+                        string newValueAsString = newValue.ToString();
 
-                    // Set the new string value back to the database
-                    var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(newValueAsString);
-                    yield return new WaitUntil(() => setGameRound.IsCompleted);
+                        // Set the new string value back to the database
+                        var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(newValueAsString);
+                        yield return new WaitUntil(() => setGameRound.IsCompleted);
+                    }
+                    else
+                    {
+                        Debug.LogError("currentGameRound is null in the DataSnapshot.");
+                    }
                 }
                 else
                 {
-                    Debug.LogError("currentGameRound is null in the DataSnapshot.");
+                    Debug.LogError("getGameData.Result is null.");
                 }
             }
-            else
-            {
-                Debug.LogError("getGameData.Result is null.");
-            }
+            #endregion
         }
+        else if (currentGameState == (int)gamestate.gambit)
+        {
+            #region PlayCards
+
+            #endregion
+        }
+
         StartCoroutine(PlayerTurnTimer());
     }
-
 
     private IEnumerator PlayerTurnTimer()
     {
@@ -250,8 +268,7 @@ public class GameController : MonoBehaviour
                         int currentScoreRound = int.Parse(getGameRoundTask.Result.Value.ToString());
                         if (currentScoreRound == 3)
                         {
-                            StartCoroutine(UpdateFirebase());
-                            StartCoroutine(Playout());
+                            currentGameState = (int)gamestate.gambit;
                             yield break;
                         }
                     }
