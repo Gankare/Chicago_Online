@@ -55,7 +55,7 @@ public class GameController : MonoBehaviour
         var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(0);
         yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted && setGameRound.IsCompleted && setScoreRound.IsCompleted);
     }
-
+    
     private void ListenForPlayerTurnChanges()
     {
         DatabaseReference playersRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players");
@@ -135,23 +135,39 @@ public class GameController : MonoBehaviour
             endTurnButton.SetActive(true);
             EnableAllButtons();
         }
-        // Increment the current game round
         if (currentPlayerId == DataSaver.instance.userId)
         {
-            var getLastGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").GetValueAsync();
-            yield return new WaitUntil(() => getLastGameRound.IsCompleted);
-            // Declare currentValue as a string
-            string currentValue = getLastGameRound.Result.ToString();
+            var getGameData = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").GetValueAsync();
+            yield return new WaitUntil(() => getGameData.IsCompleted);
 
-            // Increment the current value
-            int newValue = int.Parse(currentValue) + 1;
+            // Check if getGameData.Result is not null
+            if (getGameData.Result != null)
+            {
+                // Retrieve the value of currentGameRound from the DataSnapshot
+                var currentGameRoundSnapshot = getGameData.Result.Child("currentGameRound");
+                if (currentGameRoundSnapshot != null)
+                {
+                    string currentValue = currentGameRoundSnapshot.Value.ToString();
 
-            // Convert the new value to a string
-            string newValueAsString = newValue.ToString();
+                    // Increment the current value
+                    int newValue = int.Parse(currentValue) + 1;
 
-            // Set the new string value back to the database
-            var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(newValueAsString);
-            yield return new WaitUntil(() => setGameRound.IsCompleted);
+                    // Convert the new value to a string
+                    string newValueAsString = newValue.ToString();
+
+                    // Set the new string value back to the database
+                    var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(newValueAsString);
+                    yield return new WaitUntil(() => setGameRound.IsCompleted);
+                }
+                else
+                {
+                    Debug.LogError("currentGameRound is null in the DataSnapshot.");
+                }
+            }
+            else
+            {
+                Debug.LogError("getGameData.Result is null.");
+            }
         }
         StartCoroutine(PlayerTurnTimer());
     }
