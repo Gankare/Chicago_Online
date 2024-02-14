@@ -46,7 +46,7 @@ public class GameController : MonoBehaviour
 
     IEnumerator SetStartDeck()
     {
-        deck = allCards;
+        deck = allCards.ToList(); // Create a copy of allCards
         firebaseDeck = deck.Select(card => card.cardId).ToList();
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
         var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
@@ -140,11 +140,11 @@ public class GameController : MonoBehaviour
         {
             var getLastGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").GetValueAsync();
             yield return new WaitUntil(() => getLastGameRound.IsCompleted);
-            // Parse the current value to an integer
-            int currentValue = int.Parse(getLastGameRound.Result.ToString());
+            // Declare currentValue as a string
+            string currentValue = getLastGameRound.Result.ToString();
 
-            // Increment the value
-            int newValue = currentValue + 1;
+            // Increment the current value
+            int newValue = int.Parse(currentValue) + 1;
 
             // Convert the new value to a string
             string newValueAsString = newValue.ToString();
@@ -153,9 +153,6 @@ public class GameController : MonoBehaviour
             var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(newValueAsString);
             yield return new WaitUntil(() => setGameRound.IsCompleted);
         }
-
-        // Start the turn timer
-        turnTimer = turnDuration;
         StartCoroutine(PlayerTurnTimer());
     }
 
@@ -389,7 +386,7 @@ public class GameController : MonoBehaviour
     #endregion
 
     #region UpdateFireBaseAndLocalCards
-IEnumerator UpdateFirebase()
+    IEnumerator UpdateFirebase()
     {
         firebaseHand.Clear();
         foreach (CardScriptableObject card in hand)
