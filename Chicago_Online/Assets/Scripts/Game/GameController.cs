@@ -375,8 +375,14 @@ public class GameController : MonoBehaviour
 
             // Draw a card from the top of the deck
             CardScriptableObject drawnCard = shuffledDeck[0];
-            // Add the card ID to the player's hand
-            hand.Add(drawnCard);
+
+            // Check if the drawn card is already in the hand
+            if (!hand.Contains(drawnCard))
+            {
+                // Add the card ID to the player's hand
+                hand.Add(drawnCard);
+            }
+
             // Remove the card from the deck
             shuffledDeck.RemoveAt(0);
         }
@@ -384,14 +390,32 @@ public class GameController : MonoBehaviour
 
     private void DisplayCardsDrawn()
     {
+        // Iterate through the hand
         foreach (CardScriptableObject slot in hand)
         {
-            var currentCard = Instantiate(card, handSlot);
-            currentCard.GetComponent<Image>().sprite = slot.cardSprite;
-            currentCard.GetComponent<CardInfo>().power = slot.power;
-            currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
+            // Check if the card is already displayed
+            bool cardAlreadyDisplayed = false;
+            foreach (Transform cardTransform in handSlot)
+            {
+                CardInfo cardInfo = cardTransform.GetComponent<CardInfo>();
+                if (cardInfo != null && cardInfo.cardId == slot.cardId)
+                {
+                    cardAlreadyDisplayed = true;
+                    break;
+                }
+            }
+
+            // If the card is not already displayed, instantiate it
+            if (!cardAlreadyDisplayed)
+            {
+                var currentCard = Instantiate(card, handSlot);
+                currentCard.GetComponent<Image>().sprite = slot.cardSprite;
+                currentCard.GetComponent<CardInfo>().power = slot.power;
+                currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
+            }
         }
     }
+
     private void DisableAllButtons()
     {
         // Find all buttons in the scene
