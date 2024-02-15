@@ -26,7 +26,7 @@ public class GameController : MonoBehaviour
     public List<string> firebaseDeck = new();
     public List<string> firebaseHand = new();
     public List<string> playerIds = new(); // List of player IDs
-    public List<string> playerScores = new();
+    public List<TMP_Text> playerScores = new();
     public List<GameObject> selectedCardObjects = new();
     public Transform handSlot;
     public TMP_Text turnTimerText;
@@ -286,7 +286,9 @@ public class GameController : MonoBehaviour
 
             // Move to the next player
             playerIndex = (playerIndex + 1) % playerIds.Count;
+            Debug.Log(playerIndex);
             roundIsActive = false;
+            StartCoroutine(UpdateScore());
         }
     }
 
@@ -840,7 +842,7 @@ public class GameController : MonoBehaviour
     public void DisplayScore()
     {
         // Retrieve scores of all players from the database
-        Dictionary<string, int> playerScores = new Dictionary<string, int>();
+        Dictionary<string, int> playerScoreDictionary = new Dictionary<string, int>();
 
         var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
         getPlayersTask.ContinueWith(task =>
@@ -864,17 +866,34 @@ public class GameController : MonoBehaviour
                     score = int.Parse(playerSnapshot.Child("userGameData").Child("score").Value.ToString());
                 }
 
-                playerScores.Add(playerId, score);
+                playerScoreDictionary.Add(playerId, score);
             }
 
-            // Display the scores
-            foreach (var kvp in playerScores)
+            int currentPlayer = 0;
+            // Fetch usernames for player IDs
+            foreach (var kvp in playerScoreDictionary)
             {
-                Debug.Log("Player: " + kvp.Key + ", Score: " + kvp.Value);
-                // Update UI or do whatever you need with the player scores
+                string playerId = kvp.Key;
+                int score = kvp.Value;
+
+                // Fetch username for the player ID
+                var getUsernameTask = DataSaver.instance.dbRef.Child("users").Child(playerId).Child("userName").GetValueAsync();
+                getUsernameTask.ContinueWith(usernameTask =>
+                {
+                    if (usernameTask.IsFaulted)
+                    {
+                        Debug.LogError("Error retrieving username for player " + playerId + ": " + usernameTask.Exception);
+                        return;
+                    }
+
+                    string username = usernameTask.Result.Value.ToString();
+                    playerScores[currentPlayer].text = $"{username}: {score}";
+                    currentPlayer++;
+                });
             }
         });
     }
+
 
 
     #endregion
