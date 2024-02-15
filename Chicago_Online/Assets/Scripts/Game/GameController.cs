@@ -26,6 +26,7 @@ public class GameController : MonoBehaviour
     public List<string> firebaseDeck = new();
     public List<string> firebaseHand = new();
     public List<string> playerIds = new(); // List of player IDs
+    public List<string> playerScores = new();
     public List<GameObject> selectedCardObjects = new();
     public Transform handSlot;
     public TMP_Text turnTimerText;
@@ -99,10 +100,11 @@ public class GameController : MonoBehaviour
                     string id = childSnapshot.Key;
                     playerIds.Add(id);
                     // Initialize round counter for each player
-                    var setpPlayerHandNull = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("hand").SetValueAsync("");
+                    var setPlayerHandNull = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("hand").SetValueAsync("");
                     var setTurnFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("isTurn").SetValueAsync(false);
-                    var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(0);
-                    yield return new WaitUntil(() => setpPlayerHandNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted);
+                    var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("score").SetValueAsync(0);
+                    var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("handValue").SetValueAsync(0);
+                    yield return new WaitUntil(() => setPlayerHandNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted && setPlayerScore.IsCompleted);
                 }
             }
         }
@@ -228,7 +230,7 @@ public class GameController : MonoBehaviour
         Debug.Log("EndTurn" + currentPlayerId.ToString());
         if (currentPlayerId == DataSaver.instance.userId)
         {
-            StartCoroutine(CountAndSetValueOfHand());
+            StartCoroutine(CountAndSetValueOfHand(hand));
             DatabaseReference gameDataRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
             var getGameRoundTask = gameDataRef.Child("currentGameRound").GetValueAsync();
             yield return new WaitUntil(() => getGameRoundTask.IsCompleted);
@@ -242,7 +244,7 @@ public class GameController : MonoBehaviour
                 if (currentGameRound % playerCount == 0)
                 {
                     // If so, call UpdateScoreBoard coroutine
-                    StartCoroutine(UpdateScoreBoard());
+                    StartCoroutine(UpdateScore());
                     var resetGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(0);
                     var getLastScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").GetValueAsync();
                     yield return new WaitUntil(() => getLastScoreRound.IsCompleted && resetGameRound.IsCompleted);
@@ -415,7 +417,6 @@ public class GameController : MonoBehaviour
             }
         }
     }
-
     private void DisableAllButtons()
     {
         // Find all buttons in the scene
@@ -572,268 +573,310 @@ public class GameController : MonoBehaviour
     #endregion
 
     #region CountValueOfHand
-    private IEnumerator CountAndSetValueOfHand()
-        {
-            // Retrieve the player's cards from the database
-            List<CardScriptableObject> playerCards = GetPlayerCards(); //Get players hand
-
-            // Calculate the score for the player's hand
-            int score = CalculateScore(playerCards);
-
-            // Save the player's hand value to the database
-            var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(score);
-            yield return new WaitUntil(() => setUserHandValue.IsCompleted);
-        }
-
-        private List<CardScriptableObject> GetPlayerCards()
-        {
-            // Fetch the player's hand from the database and convert it to CardScriptableObject instances
-            List<CardScriptableObject> playerCards = new();
-            // Implement the logic to retrieve the player's hand from the database
-            return playerCards;
-        }
-        private int CalculateScore(List<CardScriptableObject> playerCards)
-        {
-            // Count occurrences of each card number and suit
-            Dictionary<CardScriptableObject.CardHierarchy, int> cardNumberCount = new();
-            Dictionary<CardScriptableObject.Suit, int> cardSuitCount = new();
-
-            foreach (var card in playerCards)
-            {
-                // Count card numbers
-                if (cardNumberCount.ContainsKey(card.cardNumber))
-                {
-                    cardNumberCount[card.cardNumber]++;
-                }
-                else
-                {
-                    cardNumberCount.Add(card.cardNumber, 1);
-                }
-
-                // Count card suits
-                if (cardSuitCount.ContainsKey(card.cardSuit))
-                {
-                    cardSuitCount[card.cardSuit]++;
-                }
-                else
-                {
-                    cardSuitCount.Add(card.cardSuit, 1);
-                }
-            }
-
-            // Check for a royal straight flush
-            bool hasRoyalStraightFlush = CheckForRoyalStraightFlush(cardNumberCount.Keys.ToList(), cardSuitCount);
-
-            if (hasRoyalStraightFlush)
-            {
-                return 52; // Points for a royal straight flush
-            }
-
-            // Check for a straight flush
-            bool hasStraightFlush = CheckForStraightFlush(cardNumberCount.Keys.ToList(), cardSuitCount);
-
-            if (hasStraightFlush)
-            {
-                return 8; // Points for a straight flush
-            }
-
-            // Check for four of a kind
-            foreach (var count in cardNumberCount.Values)
-            {
-                if (count == 4)
-                {
-                    return 7; // Points for four of a kind
-                }
-            }
-
-            // Check for a full house (pair of 3 and pair of 2)
-            bool hasPairOf2 = false;
-            bool hasPairOf3 = false;
-
-            foreach (var count in cardNumberCount.Values)
-            {
-                if (count == 2)
-                {
-                    hasPairOf2 = true;
-                }
-                else if (count == 3)
-                {
-                    hasPairOf3 = true;
-                }
-            }
-
-            if (hasPairOf2 && hasPairOf3)
-            {
-                return 6; // Full house
-            }
-
-            // Check for a flush (five cards of the same suit)
-            bool hasFlush = cardSuitCount.Any(pair => pair.Value >= 5);
-
-            if (hasFlush)
-            {
-                return 5; // Points for a flush
-            }
-
-            // Check for a straight (five consecutive cards)
-            bool hasStraight = CheckForStraight(cardNumberCount.Keys.ToList());
-
-            if (hasStraight)
-            {
-                return 4; // Points for a straight
-            }
-
-            // Check for trips (three of a kind)
-            foreach (var count in cardNumberCount.Values)
-            {
-                if (count == 3)
-                {
-                    return 3; // Points for three of a kind
-                }
-            }
-
-            // Check for two pairs
-            int pairsCount = 0;
-            foreach (var count in cardNumberCount.Values)
-            {
-                if (count == 2)
-                {
-                    pairsCount++;
-                }
-            }
-
-            if (pairsCount == 2)
-            {
-                return 2; // Points for two pairs
-            }
-
-            // Check for one pair
-            if (pairsCount == 1)
-            {
-                return 1; // Points for one pair
-            }
-
-            // If no scoring combination is found, return 0 points
-            return 0;
-        }
-
-        private bool CheckForStraight(List<CardScriptableObject.CardHierarchy> cardNumbers)
-        {
-            // Sort the card numbers in ascending order
-            cardNumbers.Sort();
-
-            // Check for a straight (five consecutive cards)
-            for (int i = 1; i < cardNumbers.Count; i++)
-            {
-                if (cardNumbers[i] - cardNumbers[i - 1] != 1)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private bool CheckForStraightFlush(List<CardScriptableObject.CardHierarchy> cardNumbers, Dictionary<CardScriptableObject.Suit, int> cardSuitCount)
-        {
-            // Implement logic to check for a straight flush (five consecutive cards of the same suit)
-            // Return true if a straight flush is found, false otherwise
-
-            // Check for a flush first
-            bool hasFlush = cardSuitCount.Any(pair => pair.Value >= 5);
-
-            if (!hasFlush)
-            {
-                return false; // Cannot have a straight flush without a flush
-            }
-
-            // Sort the card numbers in ascending order
-            cardNumbers.Sort();
-
-            // Check for a straight flush
-            for (int i = 1; i < cardNumbers.Count; i++)
-            {
-                if (cardNumbers[i] - cardNumbers[i - 1] != 1)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private bool CheckForRoyalStraightFlush(List<CardScriptableObject.CardHierarchy> cardNumbers, Dictionary<CardScriptableObject.Suit, int> cardSuitCount)
-        {
-            // Implement logic to check for a royal straight flush
-            // Return true if a royal straight flush is found, false otherwise
-
-            // Check for a straight flush first
-            bool hasStraightFlush = CheckForStraightFlush(cardNumbers, cardSuitCount);
-
-            if (!hasStraightFlush)
-            {
-                return false; // Cannot have a royal straight flush without a straight flush
-            }
-
-            // Check for a royal straight flush
-            return cardNumbers.SequenceEqual(new List<CardScriptableObject.CardHierarchy>
+    private IEnumerator CountAndSetValueOfHand(List<CardScriptableObject> playerHand)
     {
-        CardScriptableObject.CardHierarchy.ten,
-        CardScriptableObject.CardHierarchy.Jack,
-        CardScriptableObject.CardHierarchy.Queen,
-        CardScriptableObject.CardHierarchy.King,
-        CardScriptableObject.CardHierarchy.Ace
-    });
+        // Calculate the score for the player's hand
+        int score = CalculateScore(playerHand);
+
+        // Save the player's hand value to the database
+        var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(score);
+        yield return new WaitUntil(() => setUserHandValue.IsCompleted);
+    }
+
+
+    private List<CardScriptableObject> GetPlayerCards()
+    {
+        // Fetch the player's hand from the database and convert it to CardScriptableObject instances
+        List<CardScriptableObject> playerCards = new();
+        // Implement the logic to retrieve the player's hand from the database
+        return playerCards;
+    }
+    private int CalculateScore(List<CardScriptableObject> playerCards)
+    {
+        // Count occurrences of each card number and suit
+        Dictionary<CardScriptableObject.CardHierarchy, int> cardNumberCount = new();
+        Dictionary<CardScriptableObject.Suit, int> cardSuitCount = new();
+
+        foreach (var card in playerCards)
+        {
+            // Count card numbers
+            if (cardNumberCount.ContainsKey(card.cardNumber))
+            {
+                cardNumberCount[card.cardNumber]++;
+            }
+            else
+            {
+                cardNumberCount.Add(card.cardNumber, 1);
+            }
+
+            // Count card suits
+            if (cardSuitCount.ContainsKey(card.cardSuit))
+            {
+                cardSuitCount[card.cardSuit]++;
+            }
+            else
+            {
+                cardSuitCount.Add(card.cardSuit, 1);
+            }
         }
 
-        private IEnumerator UpdateScoreBoard()
+        // Check for a royal straight flush
+        bool hasRoyalStraightFlush = CheckForRoyalStraightFlush(cardNumberCount.Keys.ToList(), cardSuitCount);
+
+        if (hasRoyalStraightFlush)
         {
-            // Retrieve hand values of all players from the database
-            Dictionary<string, int> playerHandValues = new Dictionary<string, int>();
+            return 52; // Points for a royal straight flush
+        }
 
-            var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
-            yield return new WaitUntil(() => getPlayersTask.IsCompleted);
+        // Check for a straight flush
+        bool hasStraightFlush = CheckForStraightFlush(cardNumberCount.Keys.ToList(), cardSuitCount);
 
-            if (getPlayersTask.Exception != null)
+        if (hasStraightFlush)
+        {
+            return 8; // Points for a straight flush
+        }
+
+        // Check for four of a kind
+        foreach (var count in cardNumberCount.Values)
+        {
+            if (count == 4)
             {
-                Debug.LogError("Error retrieving player data from Firebase.");
+                return 7; // Points for four of a kind
+            }
+        }
+
+        // Check for a full house (pair of 3 and pair of 2)
+        bool hasPairOf2 = false;
+        bool hasPairOf3 = false;
+
+        foreach (var count in cardNumberCount.Values)
+        {
+            if (count == 2)
+            {
+                hasPairOf2 = true;
+            }
+            else if (count == 3)
+            {
+                hasPairOf3 = true;
+            }
+        }
+
+        if (hasPairOf2 && hasPairOf3)
+        {
+            return 6; // Full house
+        }
+
+        // Check for a flush (five cards of the same suit)
+        bool hasFlush = cardSuitCount.Any(pair => pair.Value >= 5);
+
+        if (hasFlush)
+        {
+            return 5; // Points for a flush
+        }
+
+        // Check for a straight (five consecutive cards)
+        bool hasStraight = CheckForStraight(cardNumberCount.Keys.ToList());
+
+        if (hasStraight)
+        {
+            return 4; // Points for a straight
+        }
+
+        // Check for trips (three of a kind)
+        foreach (var count in cardNumberCount.Values)
+        {
+            if (count == 3)
+            {
+                return 3; // Points for three of a kind
+            }
+        }
+
+        // Check for two pairs
+        int pairsCount = 0;
+        foreach (var count in cardNumberCount.Values)
+        {
+            if (count == 2)
+            {
+                pairsCount++;
+            }
+        }
+
+        if (pairsCount == 2)
+        {
+            return 2; // Points for two pairs
+        }
+
+        // Check for one pair
+        if (pairsCount == 1)
+        {
+            return 1; // Points for one pair
+        }
+
+        // If no scoring combination is found, return 0 points
+        return 0;
+    }
+
+    private bool CheckForStraight(List<CardScriptableObject.CardHierarchy> cardNumbers)
+    {
+        // Sort the card numbers in ascending order
+        cardNumbers.Sort();
+
+        // Check for a straight (five consecutive cards)
+        for (int i = 1; i < cardNumbers.Count; i++)
+        {
+            if (cardNumbers[i] - cardNumbers[i - 1] != 1)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private bool CheckForStraightFlush(List<CardScriptableObject.CardHierarchy> cardNumbers, Dictionary<CardScriptableObject.Suit, int> cardSuitCount)
+    {
+        // Implement logic to check for a straight flush (five consecutive cards of the same suit)
+        // Return true if a straight flush is found, false otherwise
+
+        // Check for a flush first
+        bool hasFlush = cardSuitCount.Any(pair => pair.Value >= 5);
+
+        if (!hasFlush)
+        {
+            return false; // Cannot have a straight flush without a flush
+        }
+
+        // Sort the card numbers in ascending order
+        cardNumbers.Sort();
+
+        // Check for a straight flush
+        for (int i = 1; i < cardNumbers.Count; i++)
+        {
+            if (cardNumbers[i] - cardNumbers[i - 1] != 1)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private bool CheckForRoyalStraightFlush(List<CardScriptableObject.CardHierarchy> cardNumbers, Dictionary<CardScriptableObject.Suit, int> cardSuitCount)
+    {
+        // Implement logic to check for a royal straight flush
+        // Return true if a royal straight flush is found, false otherwise
+
+        // Check for a straight flush first
+        bool hasStraightFlush = CheckForStraightFlush(cardNumbers, cardSuitCount);
+
+        if (!hasStraightFlush)
+        {
+            return false; // Cannot have a royal straight flush without a straight flush
+        }
+
+        // Check for a royal straight flush
+        return cardNumbers.SequenceEqual(new List<CardScriptableObject.CardHierarchy>
+{
+    CardScriptableObject.CardHierarchy.ten,
+    CardScriptableObject.CardHierarchy.Jack,
+    CardScriptableObject.CardHierarchy.Queen,
+    CardScriptableObject.CardHierarchy.King,
+    CardScriptableObject.CardHierarchy.Ace
+});
+    }
+
+    private IEnumerator UpdateScore()
+    {
+        // Retrieve hand values of all players from the database
+        Dictionary<string, int> playerHandValues = new Dictionary<string, int>();
+
+        var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
+        yield return new WaitUntil(() => getPlayersTask.IsCompleted);
+
+        if (getPlayersTask.Exception != null)
+        {
+            Debug.LogError("Error retrieving player data from Firebase.");
+            yield break;
+        }
+
+        DataSnapshot playersSnapshot = getPlayersTask.Result;
+
+        foreach (var playerSnapshot in playersSnapshot.Children)
+        {
+            string playerId = playerSnapshot.Key;
+            int handValue = int.Parse(playerSnapshot.Child("userGameData").Child("handValue").Value.ToString());
+            playerHandValues.Add(playerId, handValue);
+        }
+
+        // Find the player with the highest hand value
+        string highestScoringPlayerId = "";
+        int highestScore = -1;
+
+        foreach (var kvp in playerHandValues)
+        {
+            if (kvp.Value > highestScore)
+            {
+                highestScore = kvp.Value;
+                highestScoringPlayerId = kvp.Key;
+            }
+        }
+
+        // Update the score for the highest scoring player directly
+        if (!string.IsNullOrEmpty(highestScoringPlayerId))
+        {
+            var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(highestScoringPlayerId).Child("userGameData").Child("score").SetValueAsync(highestScore.ToString());
+            yield return new WaitUntil(() => setPlayerScore.IsCompleted);
+
+            if (setPlayerScore.Exception != null)
+            {
+                Debug.LogError("Error updating player score in Firebase.");
                 yield break;
             }
 
-            DataSnapshot playersSnapshot = getPlayersTask.Result;
+            Debug.Log("Score updated for player: " + highestScoringPlayerId);
+        }
+    }
+
+    public void DisplayScore()
+    {
+        // Retrieve scores of all players from the database
+        Dictionary<string, int> playerScores = new Dictionary<string, int>();
+
+        var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
+        getPlayersTask.ContinueWith(task =>
+        {
+            if (task.IsFaulted)
+            {
+                Debug.LogError("Error retrieving player data from Firebase: " + task.Exception);
+                return;
+            }
+
+            DataSnapshot playersSnapshot = task.Result;
 
             foreach (var playerSnapshot in playersSnapshot.Children)
             {
                 string playerId = playerSnapshot.Key;
-                int handValue = int.Parse(playerSnapshot.Child("userGameData").Child("handValue").Value.ToString());
-                playerHandValues.Add(playerId, handValue);
-            }
+                int score = 0; // Default score to 0
 
-            // Find the player with the highest hand value
-            string highestScoringPlayerId = "";
-            int highestScore = -1;
-
-            foreach (var kvp in playerHandValues)
-            {
-                if (kvp.Value > highestScore)
+                // If the player has a score value, retrieve it
+                if (playerSnapshot.Child("userGameData").Child("score").Exists)
                 {
-                    highestScore = kvp.Value;
-                    highestScoringPlayerId = kvp.Key;
+                    score = int.Parse(playerSnapshot.Child("userGameData").Child("score").Value.ToString());
                 }
+
+                playerScores.Add(playerId, score);
             }
 
-            // Update the scoreboard in the database
-            var updateScoreboardTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("scoreboard").SetValueAsync(highestScoringPlayerId);
-            yield return new WaitUntil(() => updateScoreboardTask.IsCompleted);
-
-            if (updateScoreboardTask.Exception != null)
+            // Display the scores
+            foreach (var kvp in playerScores)
             {
-                Debug.LogError("Error updating scoreboard in Firebase.");
-                yield break;
+                Debug.Log("Player: " + kvp.Key + ", Score: " + kvp.Value);
+                // Update UI or do whatever you need with the player scores
             }
+        });
+    }
 
-            Debug.Log("Scoreboard updated with the highest scoring player: " + highestScoringPlayerId);
-        }
+
     #endregion
 
     #region Gambit
