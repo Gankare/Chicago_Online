@@ -145,7 +145,7 @@ public class GameController : MonoBehaviour
                 yield return updateLocalCoroutine;
                 StartCoroutine(ShuffleAndDealOwnCards(deck));
                 endTurnButton.SetActive(true);
-                EnableAllButtons();
+                //EnableAllButtons();
             }
             if (currentPlayerId == DataSaver.instance.userId)
             {
@@ -210,6 +210,9 @@ public class GameController : MonoBehaviour
             // Check if the turn timer has run out
             if (turnTimer <= 0f)
             {
+                string currentPlayerId = playerIds[playerIndex];
+                if (currentPlayerId == DataSaver.instance.userId)
+                    ThrowCards();
                 // End the player's turn if the timer runs out
                 StartCoroutine(EndPlayerTurn());
                 yield break; // Exit the coroutine
@@ -221,15 +224,15 @@ public class GameController : MonoBehaviour
 
     IEnumerator EndPlayerTurn()
     {
-        DealCards(deck);
-        DisplayCardsDrawn();
-        DisableAllButtons();
-        endTurnButton.SetActive(false);
-        turnTimerText.text = "";
         string currentPlayerId = playerIds[playerIndex];
         Debug.Log("EndTurn" + currentPlayerId.ToString());
         if (currentPlayerId == DataSaver.instance.userId)
         {
+            endTurnButton.SetActive(false);
+            DealCards(deck);
+            StartCoroutine(DisplayCardsDrawn());
+            //DisableAllButtons();
+            turnTimerText.text = "";
             StartCoroutine(CountAndSetValueOfHand(hand));
             DatabaseReference gameDataRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
             var getGameRoundTask = gameDataRef.Child("currentGameRound").GetValueAsync();
@@ -346,7 +349,7 @@ public class GameController : MonoBehaviour
         deck = shuffledDeck;
         // Deal cards to the local player
         DealCards(deck);
-        DisplayCardsDrawn();
+        StartCoroutine(DisplayCardsDrawn());
         yield return null;
     }
 
@@ -392,7 +395,7 @@ public class GameController : MonoBehaviour
         }
     }
 
-    private void DisplayCardsDrawn()
+    IEnumerator DisplayCardsDrawn()
     {
         // Iterate through the hand
         foreach (CardScriptableObject slot in hand)
@@ -416,33 +419,39 @@ public class GameController : MonoBehaviour
                 currentCard.GetComponent<Image>().sprite = slot.cardSprite;
                 currentCard.GetComponent<CardInfo>().power = slot.power;
                 currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
+                yield return WaitForSeconds(0.5f);
             }
         }
     }
-    private void DisableAllButtons()
+    private object WaitForSeconds(float v)
     {
-        // Find all buttons in the scene
-        Button[] buttons = FindObjectsOfType<Button>();
-
-        // Disable each button
-        foreach (Button button in buttons)
-        {
-            button.interactable = false;
-        }
+        throw new System.NotImplementedException();
     }
 
-    // Function to enable all buttons
-    private void EnableAllButtons()
-    {
-        // Find all buttons in the scene
-        Button[] buttons = FindObjectsOfType<Button>();
+    /*private void DisableAllButtons()
+{
+   // Find all buttons in the scene
+   Button[] buttons = FindObjectsOfType<Button>();
 
-        // Enable each button
-        foreach (Button button in buttons)
-        {
-            button.interactable = true;
-        }
-    }
+   // Disable each button
+   foreach (Button button in buttons)
+   {
+       button.interactable = false;
+   }
+}
+
+// Function to enable all buttons
+private void EnableAllButtons()
+{
+   // Find all buttons in the scene
+   Button[] buttons = FindObjectsOfType<Button>();
+
+   // Enable each button
+   foreach (Button button in buttons)
+   {
+       button.interactable = true;
+   }
+}*/
     #endregion
 
     #region UpdateFireBaseAndLocalCards

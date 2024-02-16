@@ -15,7 +15,7 @@ public class CardButtonClick : MonoBehaviour
     }
 
     // Function to throw the card when the button is clicked
-    public void ThrowCard()
+    public void SelectCard()
     {
         // Check if the GameController script is found
         if (gameController != null)

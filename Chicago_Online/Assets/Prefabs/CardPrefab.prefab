@@ -124,7 +124,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 530338933488529617}
         m_TargetAssemblyTypeName: CardButtonClick, Assembly-CSharp
-        m_MethodName: ThrowCard
+        m_MethodName: SelectCard
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
