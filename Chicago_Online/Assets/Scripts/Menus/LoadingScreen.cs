@@ -18,7 +18,7 @@ public class LoadingScreen : MonoBehaviour
     {
         timer += Time.deltaTime;
         loadingBar.value = timer;
-        if (timer > 1)
+        if (timer > 2)
             Destroy(gameObject);
     }
 }

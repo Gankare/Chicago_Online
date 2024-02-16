@@ -107,6 +107,7 @@ public class GameController : MonoBehaviour
                     yield return new WaitUntil(() => setPlayerHandNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted && setPlayerScore.IsCompleted);
                 }
             }
+            DisplayScore();
         }
     }
     #endregion
@@ -419,13 +420,9 @@ public class GameController : MonoBehaviour
                 currentCard.GetComponent<Image>().sprite = slot.cardSprite;
                 currentCard.GetComponent<CardInfo>().power = slot.power;
                 currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
-                yield return WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(0.5f);
             }
         }
-    }
-    private object WaitForSeconds(float v)
-    {
-        throw new System.NotImplementedException();
     }
 
     /*private void DisableAllButtons()
@@ -843,9 +840,9 @@ private void EnableAllButtons()
                 Debug.LogError("Error updating player score in Firebase.");
                 yield break;
             }
-
             Debug.Log("Score updated for player: " + highestScoringPlayerId);
         }
+        DisplayScore();
     }
 
     public void DisplayScore()
