@@ -54,7 +54,7 @@ public class WaitingRoomButtons : MonoBehaviour
         SubscribeToDatabaseEvents();
 
         // Start coroutine to update players' UI
-        StartCoroutine(initLoadPlayers());
+        StartCoroutine(InitLoadPlayers());
     }
 
     void SubscribeToDatabaseEvents()
@@ -87,7 +87,7 @@ public class WaitingRoomButtons : MonoBehaviour
         RemovePlayerChangedListener();
     }
 
-    IEnumerator initLoadPlayers()
+    IEnumerator InitLoadPlayers()
     {
         yield return new WaitForSeconds(1);
         StartCoroutine(UpdatePlayers());

@@ -8,11 +8,12 @@ using Firebase.Database;
 using UnityEngine.UI;
 using TMPro;
 using Firebase.Extensions;
+using Unity.VisualScripting;
 
 public class GameController : MonoBehaviour
 {
     public GameObject card;
-    public enum gamestate
+    public enum Gamestate
     {
         distributionOfCards,
         gambit
@@ -36,6 +37,8 @@ public class GameController : MonoBehaviour
     private string serverId;
     private int playerIndex = 0; // Index of the current player
     private bool roundIsActive = false;
+    private bool turnEndedEarly = false;
+    private DatabaseReference turnTimerRef;
 
     private void Awake()
     {
@@ -46,14 +49,70 @@ public class GameController : MonoBehaviour
     private void Start()
     {
         StartCoroutine(SetStartDeck());
+        ListenForTurnTimerChanges();
         StartCoroutine(InitializeGameData());
         StartCoroutine(UpdateFirebase());
-        Invoke(nameof(ListenForPlayerTurnChanges), 3);
+    }
+
+    private void ListenForPlayerTurn()
+    {
+        // Get the reference to the player's isTurn value in the database
+        DatabaseReference isTurnRef = DataSaver.instance.dbRef
+            .Child("servers")
+            .Child(serverId)
+            .Child("players")
+            .Child(DataSaver.instance.userId)
+            .Child("userGameData")
+            .Child("isTurn");
+
+        // Add a listener for changes in the isTurn value
+        isTurnRef.ValueChanged += PlayerTurnValueChanged;
+    }
+
+    private void PlayerTurnValueChanged(object sender, ValueChangedEventArgs args)
+    {
+        // Check if the value changed and if it became true
+        if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
+        {
+            bool isTurn = (bool)args.Snapshot.Value;
+            if (isTurn)
+            {
+                Debug.Log("Start Turn");
+                // Start the next round when a player's turn becomes true
+                StartCoroutine(StartNextRound());
+            }
+        }
+    }
+    private void ListenForTurnTimerChanges()
+    {
+        turnTimerRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("turnTimer");
+        // Listen for changes in the turn timer value
+        turnTimerRef.ValueChanged += TurnTimerValueChanged;
+    }
+    private void TurnTimerValueChanged(object sender, ValueChangedEventArgs args)
+    {
+        if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
+        {
+            // Update the local turn timer based on the database value
+            if (float.TryParse(args.Snapshot.Value.ToString(), out float newTurnTimer))
+            {
+                turnTimer = newTurnTimer;
+                int remainingSeconds = Mathf.RoundToInt(turnTimer);
+                if (remainingSeconds > 0)
+                    turnTimerText.text = remainingSeconds.ToString();
+                else
+                    turnTimerText.text = "";
+            }
+            else
+            {
+                Debug.LogError("Failed to parse turn timer value.");
+            }
+        }
     }
 
     IEnumerator SetStartDeck()
     {
-        currentGameState = (int)gamestate.distributionOfCards;
+        currentGameState = (int)Gamestate.distributionOfCards;
         deck = allCards.ToList(); // Create a copy of allCards
         firebaseDeck = deck.Select(card => card.cardId).ToList();
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
@@ -61,14 +120,10 @@ public class GameController : MonoBehaviour
         var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(firebaseHand);
         var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(0);
         var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(0);
-        yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted && setGameRound.IsCompleted && setScoreRound.IsCompleted);
+        var setServerTimer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("turnTimer").SetValueAsync(0);
+        yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted && setGameRound.IsCompleted && setScoreRound.IsCompleted && setServerTimer.IsCompleted);
     }
-    
-    private void ListenForPlayerTurnChanges()
-    {
-        DatabaseReference playersRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players");
-        playersRef.ValueChanged += PlayersValueChanged;
-    }
+   
     private void OnDisable()
     {
         RemoveListeners();
@@ -80,8 +135,17 @@ public class GameController : MonoBehaviour
     }
     void RemoveListeners()
     {
-        DatabaseReference playersRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child("userGameData").Child("isTurn");
-        playersRef.ValueChanged -= PlayersValueChanged;
+        turnTimerRef.ValueChanged -= TurnTimerValueChanged;
+        DatabaseReference isTurnRef = DataSaver.instance.dbRef
+            .Child("servers")
+            .Child(serverId)
+            .Child("players")
+            .Child(DataSaver.instance.userId)
+            .Child("userGameData")
+            .Child("isTurn");
+
+        // Add a listener for changes in the isTurn value
+        isTurnRef.ValueChanged -= PlayerTurnValueChanged;
     }
     private IEnumerator InitializeGameData()
     {
@@ -100,14 +164,23 @@ public class GameController : MonoBehaviour
                     string id = childSnapshot.Key;
                     playerIds.Add(id);
                     // Initialize round counter for each player
-                    var setPlayerHandNull = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("hand").SetValueAsync("");
-                    var setTurnFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("isTurn").SetValueAsync(false);
-                    var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("score").SetValueAsync(0);
-                    var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(id).Child("userGameData").Child("handValue").SetValueAsync(0);
-                    yield return new WaitUntil(() => setPlayerHandNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted && setPlayerScore.IsCompleted);
                 }
+                    var setPlayerHandNull = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync("");
+                    var setTurnFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("isTurn").SetValueAsync(false);
+                    var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("score").SetValueAsync(0);
+                    var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(0);
+                    yield return new WaitUntil(() => setPlayerHandNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted && setPlayerScore.IsCompleted);
+
+                yield return new WaitForSeconds(1);
+                string currentPlayerId = playerIds[playerIndex];
+                if (currentPlayerId == DataSaver.instance.userId)
+                {
+                    var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
+                    yield return new WaitUntil(() => setTurnTrue.IsCompleted);
+                    Debug.Log("Setting player turn true");
+                }
+                ListenForPlayerTurn();
             }
-            DisplayScore();
         }
     }
     #endregion
@@ -116,38 +189,52 @@ public class GameController : MonoBehaviour
     IEnumerator StartNextRound()
     {
         if (roundIsActive)
+        {
+            Debug.LogWarning("Round already active.");
             yield break;
-        roundIsActive = true;
-        // Check if playerIds contains any elements
+        }
+
         if (playerIds.Count == 0)
         {
             Debug.LogWarning("No player IDs found.");
-            yield break; // Exit the coroutine or handle the situation accordingly
+            yield break;
         }
 
-        // Ensure playerIndex is within bounds of playerIds list
         if (playerIndex >= playerIds.Count)
         {
-            // Reset playerIndex to 0 to loop back to the beginning of the list
             playerIndex = 0;
         }
 
-        // Start the turn for the current player
+        DisplayScore();
+        bool continueRound = true;
+        IsMyTurn((isMyTurn) =>
+        {
+            if (!isMyTurn)
+                continueRound = false;
+        });
+
+        yield return StartCoroutine(UpdateLocalDataFromFirebase()); // Wait for data update from Firebase
+
+        if (!continueRound)
+        {
+            Debug.LogWarning("Not my turn");
+            yield break;
+        }
+
+        roundIsActive = true;
+        playerIndex = playerIds.IndexOf(DataSaver.instance.userId);
+        Debug.Log("Starting turn for player: " + playerIndex);
         string currentPlayerId = playerIds[playerIndex];
 
-        if (currentGameState == (int)gamestate.distributionOfCards)
+        if (currentGameState == (int)Gamestate.distributionOfCards)
         {
             #region GiveCards
             if (currentPlayerId == DataSaver.instance.userId)
             {
-                var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
-                yield return new WaitUntil(() => setTurnTrue.IsCompleted);
-                Coroutine updateLocalCoroutine = StartCoroutine(UpdateLocalDataFromFirebase());
-                yield return updateLocalCoroutine;
                 StartCoroutine(ShuffleAndDealOwnCards(deck));
                 endTurnButton.SetActive(true);
-                //EnableAllButtons();
             }
+        
             if (currentPlayerId == DataSaver.instance.userId)
             {
                 var getGameData = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").GetValueAsync();
@@ -184,13 +271,12 @@ public class GameController : MonoBehaviour
             }
             #endregion
         }
-        else if (currentGameState == (int)gamestate.gambit)
+        else if (currentGameState == (int)Gamestate.gambit)
         {
             #region PlayCards
 
             #endregion
         }
-
         StartCoroutine(PlayerTurnTimer());
     }
 
@@ -200,20 +286,24 @@ public class GameController : MonoBehaviour
         turnTimer = turnDuration;
 
         // Loop until the turn timer runs out
-        while (turnTimer > 0f)
+        while (turnTimer > 0f && !turnEndedEarly)
         {
-            // Update the turn timer
-            turnTimer -= Time.deltaTime;
-            int remainingSeconds = Mathf.RoundToInt(turnTimer);
-            turnTimerText.text = remainingSeconds.ToString();
-
+            // Check if the current player is the one who has the turn
+            string currentPlayerId = playerIds[playerIndex];
+            if (currentPlayerId == DataSaver.instance.userId)
+            {
+                turnTimer -= Time.deltaTime;
+                // Update the turn timer on the server
+                turnTimerRef.SetValueAsync(turnTimer);
+            }
 
             // Check if the turn timer has run out
             if (turnTimer <= 0f)
             {
-                string currentPlayerId = playerIds[playerIndex];
-                if (currentPlayerId == DataSaver.instance.userId)
+                if (currentPlayerId == DataSaver.instance.userId && !turnEndedEarly)
+                {
                     ThrowCards();
+                }
                 // End the player's turn if the timer runs out
                 StartCoroutine(EndPlayerTurn());
                 yield break; // Exit the coroutine
@@ -232,8 +322,7 @@ public class GameController : MonoBehaviour
             endTurnButton.SetActive(false);
             DealCards(deck);
             StartCoroutine(DisplayCardsDrawn());
-            //DisableAllButtons();
-            turnTimerText.text = "";
+            turnEndedEarly = false;
             StartCoroutine(CountAndSetValueOfHand(hand));
             DatabaseReference gameDataRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
             var getGameRoundTask = gameDataRef.Child("currentGameRound").GetValueAsync();
@@ -248,7 +337,6 @@ public class GameController : MonoBehaviour
                 if (currentGameRound % playerCount == 0)
                 {
                     // If so, call UpdateScoreBoard coroutine
-                    StartCoroutine(UpdateScore());
                     var resetGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(0);
                     var getLastScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").GetValueAsync();
                     yield return new WaitUntil(() => getLastScoreRound.IsCompleted && resetGameRound.IsCompleted);
@@ -274,7 +362,7 @@ public class GameController : MonoBehaviour
                         int currentScoreRound = int.Parse(getGameRoundTask.Result.Value.ToString());
                         if (currentScoreRound == 3)
                         {
-                            currentGameState = (int)gamestate.gambit;
+                            currentGameState = (int)Gamestate.gambit;
                             yield break;
                         }
                     }
@@ -288,59 +376,44 @@ public class GameController : MonoBehaviour
                 yield return new WaitUntil(() => removeUserTurn.IsCompleted);
             }
 
-            // Move to the next player
-            playerIndex = (playerIndex + 1) % playerIds.Count;
-            Debug.Log(playerIndex);
-            roundIsActive = false;
             StartCoroutine(UpdateScore());
+            PassTurnToNextPlayer();
+            roundIsActive = false;
         }
     }
-
-    private void PlayersValueChanged(object sender, ValueChangedEventArgs args)
+    IEnumerator IsMyTurnCoroutine(System.Action<bool> callback)
     {
-        if (args != null)
+        var isTurnSnapshotTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("isTurn").GetValueAsync();
+        yield return new WaitUntil(() => isTurnSnapshotTask.IsCompleted);
+
+        bool isMyTurn = false;
+        if (isTurnSnapshotTask.Exception != null)
         {
-            // Method body remains the same
-            if (args.DatabaseError != null)
-            {
-                Debug.LogError("Database error: " + args.DatabaseError.Message);
-                return;
-            }
-
-            // Check if all players have isTurn set to false
-            bool allPlayersTurnFalse = true;
-
-            foreach (var playerSnapshot in args.Snapshot.Children)
-            {
-                // Check if the playerSnapshot contains the "userGameData" child node
-                if (playerSnapshot.Child("userGameData").Exists)
-                {
-                    // Retrieve the isTurn value using Firebase SDK methods
-                    bool isTurn = (bool)playerSnapshot.Child("userGameData").Child("isTurn").Value;
-
-                    // If any player has isTurn set to true, set allPlayersTurnFalse to false
-                    if (isTurn)
-                    {
-                        allPlayersTurnFalse = false;
-                        break;
-                    }
-                }
-                else
-                {
-                    Debug.Log("User does not have data(isturn)");
-                }
-            }
-
-            // If all players have isTurn set to false, start the next turn
-            if (allPlayersTurnFalse)
-            {
-                StartCoroutine(StartNextRound());
-            }
+            Debug.LogError("Error retrieving isTurn value: " + isTurnSnapshotTask.Exception);
         }
-        else
+        else if (isTurnSnapshotTask.Result != null)
         {
-            Debug.LogError("Value change event arguments are null.");
+            isMyTurn = (bool)isTurnSnapshotTask.Result.Value;
         }
+
+        Debug.Log("Is it my turn? " + isMyTurn);
+        callback?.Invoke(isMyTurn);
+    }
+
+    void IsMyTurn(System.Action<bool> callback)
+    {
+        StartCoroutine(IsMyTurnCoroutine(callback));
+    }
+
+
+    void PassTurnToNextPlayer()
+    {
+        int currentIndex = playerIds.IndexOf(DataSaver.instance.userId);
+        int nextIndex = (currentIndex + 1) % playerIds.Count;
+        string nextPlayerId = playerIds[nextIndex];
+
+        // Update the database to indicate it's the next player's turn
+        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(nextPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
     }
 
     private IEnumerator ShuffleAndDealOwnCards(List<CardScriptableObject> deckToShuffle)
@@ -552,19 +625,33 @@ private void EnableAllButtons()
     }
     public void ThrowCards()
     {
-        // Remove all selected cards from the hand list and destroy their corresponding GameObjects
-        foreach (GameObject selectedCardObject in selectedCardObjects)
+        if (!turnEndedEarly)
         {
-            CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
-            hand.Remove(GetCardFromId(cardInfo.cardId));
-            discardPile.Add(GetCardFromId(cardInfo.cardId));
-            Destroy(selectedCardObject);
-            turnTimer = 0;
-        }
+            foreach (GameObject selectedCardObject in selectedCardObjects)
+            {
+                CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
+                CardScriptableObject cardToRemove = GetCardFromId(cardInfo.cardId);
 
-        // Clear the list of selected card objects
-        selectedCardObjects.Clear();
+                if (cardToRemove != null)
+                {
+                    hand.Remove(cardToRemove);
+                    discardPile.Add(cardToRemove);
+                    Destroy(selectedCardObject);
+                    Debug.Log("Card thrown: " + cardToRemove.cardId);
+                }
+                else
+                {
+                    Debug.LogError("Failed to find card with ID: " + cardInfo.cardId);
+                }
+            }
+
+            // Clear the list of selected card objects
+            selectedCardObjects.Clear();
+            turnEndedEarly = true;
+            turnTimerRef.SetValueAsync(0f);
+        }
     }
+
     private CardScriptableObject GetCardFromId(string cardId)
     {
         // Iterate through all card objects to find the one with the matching cardId
@@ -589,15 +676,6 @@ private void EnableAllButtons()
         // Save the player's hand value to the database
         var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(score);
         yield return new WaitUntil(() => setUserHandValue.IsCompleted);
-    }
-
-
-    private List<CardScriptableObject> GetPlayerCards()
-    {
-        // Fetch the player's hand from the database and convert it to CardScriptableObject instances
-        List<CardScriptableObject> playerCards = new();
-        // Implement the logic to retrieve the player's hand from the database
-        return playerCards;
     }
     private int CalculateScore(List<CardScriptableObject> playerCards)
     {
@@ -796,7 +874,7 @@ private void EnableAllButtons()
     private IEnumerator UpdateScore()
     {
         // Retrieve hand values of all players from the database
-        Dictionary<string, int> playerHandValues = new Dictionary<string, int>();
+        Dictionary<string, int> playerHandValues = new();
 
         var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => getPlayersTask.IsCompleted);
@@ -847,8 +925,9 @@ private void EnableAllButtons()
 
     public void DisplayScore()
     {
+        Debug.Log("trying to show score");
         // Retrieve scores of all players from the database
-        Dictionary<string, int> playerScoreDictionary = new Dictionary<string, int>();
+        Dictionary<string, int> playerScoreDictionary = new();
 
         var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
         getPlayersTask.ContinueWith(task =>
@@ -899,9 +978,6 @@ private void EnableAllButtons()
             }
         });
     }
-
-
-
     #endregion
 
     #region Gambit

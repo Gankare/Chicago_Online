@@ -53,6 +53,10 @@ public class ServerManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
+        if(scene.name == "ServerScene")
+        {
+            StartCoroutine(CheckAndRemoveUserFromServer(DataSaver.instance.userId));
+        }
     }
     public void PlayerConnected(string userId)
     {
@@ -315,6 +319,7 @@ public class ServerManager : MonoBehaviour
             var setGameStarted = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameHasStarted").SetValueAsync(true);
             yield return new WaitUntil(() => setGameStarted.IsCompleted);
             SceneManager.LoadScene(serverId);
+            yield break;
         }
     }
 }
