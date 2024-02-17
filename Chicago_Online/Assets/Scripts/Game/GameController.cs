@@ -286,7 +286,7 @@ public class GameController : MonoBehaviour
         turnTimer = turnDuration;
 
         // Loop until the turn timer runs out
-        while (turnTimer > 0f && !turnEndedEarly)
+        while (turnTimer > 0f)
         {
             // Check if the current player is the one who has the turn
             string currentPlayerId = playerIds[playerIndex];
@@ -371,7 +371,7 @@ public class GameController : MonoBehaviour
 
             if (currentPlayerId == DataSaver.instance.userId)
             {
-                StartCoroutine(UpdateFirebase());
+                yield return StartCoroutine(UpdateFirebase());
                 var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
                 yield return new WaitUntil(() => removeUserTurn.IsCompleted);
             }
@@ -648,6 +648,7 @@ private void EnableAllButtons()
             // Clear the list of selected card objects
             selectedCardObjects.Clear();
             turnEndedEarly = true;
+            turnTimer = 0;
             turnTimerRef.SetValueAsync(0f);
         }
     }
