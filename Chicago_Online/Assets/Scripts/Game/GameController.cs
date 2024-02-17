@@ -336,18 +336,16 @@ public class GameController : MonoBehaviour
                 // Check if the current game round is divisible by the number of players, if all players have 
                 if (currentGameRound % playerCount == 0)
                 {
-                    // If so, call UpdateScoreBoard coroutine
-                    var resetGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(0);
-                    var getLastScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").GetValueAsync();
-                    yield return new WaitUntil(() => getLastScoreRound.IsCompleted && resetGameRound.IsCompleted);
-                    // Parse the current value to an integer
-                    int currentScoreValue = int.Parse(getLastScoreRound.Result.ToString());
+                    var setGameRoundTask = gameDataRef.Child("currentGameRound").SetValueAsync(0);
+                    var getLastScoreRound = gameDataRef.Child("scoreGameRound").GetValueAsync();
+                    yield return new WaitUntil(() => getLastScoreRound.IsCompleted && setGameRoundTask.IsCompleted);
 
-                    // Increment the value
-                    int newScoreValue = currentScoreValue + 1;
+                    string currentValue = getLastScoreRound.Result.Value.ToString();
+                    // Increment the current value
+                    int newValue = int.Parse(currentValue) + 1;
 
                     // Convert the new value to a string
-                    string newValueAsString = newScoreValue.ToString();
+                    string newValueAsString = newValue.ToString();
 
                     // Set the new string value back to the database
                     var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("ScoreGameRound").SetValueAsync(newValueAsString);

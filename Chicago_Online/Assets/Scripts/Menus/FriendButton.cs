@@ -79,7 +79,7 @@ public class FriendButton : MonoBehaviour
             {
                 // No servers found, update color to default color (or handle as needed)
                 joinButton.enabled = false;
-                friendStatusImage.color = Color.white;
+                friendStatusImage.color = Color.red;
                 friendServerId = null;
             }
 
