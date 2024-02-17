@@ -168,9 +168,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71c1514a6bd24e1e882cebbe1904ce04, type: 3}
   m_Name: Comication SDF 1
   m_EditorClassIdentifier: 
-  hashCode: 0
+  hashCode: -1535120490
   material: {fileID: -1612283506903936467}
-  materialHashCode: 0
+  materialHashCode: 2068625782
   m_Version: 1.1.0
   m_SourceFontFileGUID: 9c71ee485561eba49a98a2e15e42740b
   m_SourceFontFile_EditorRef: {fileID: 12800000, guid: 9c71ee485561eba49a98a2e15e42740b, type: 3}

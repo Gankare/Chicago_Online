@@ -214,7 +214,7 @@ public class GameController : MonoBehaviour
         });
 
         yield return StartCoroutine(UpdateLocalDataFromFirebase()); // Wait for data update from Firebase
-
+        yield return new WaitForSeconds(1);
         if (!continueRound)
         {
             Debug.LogWarning("Not my turn");
@@ -497,31 +497,6 @@ public class GameController : MonoBehaviour
             }
         }
     }
-
-    /*private void DisableAllButtons()
-{
-   // Find all buttons in the scene
-   Button[] buttons = FindObjectsOfType<Button>();
-
-   // Disable each button
-   foreach (Button button in buttons)
-   {
-       button.interactable = false;
-   }
-}
-
-// Function to enable all buttons
-private void EnableAllButtons()
-{
-   // Find all buttons in the scene
-   Button[] buttons = FindObjectsOfType<Button>();
-
-   // Enable each button
-   foreach (Button button in buttons)
-   {
-       button.interactable = true;
-   }
-}*/
     #endregion
 
     #region UpdateFireBaseAndLocalCards
@@ -650,6 +625,7 @@ private void EnableAllButtons()
             turnEndedEarly = true;
             turnTimer = 0;
             turnTimerRef.SetValueAsync(0f);
+            StartCoroutine(EndPlayerTurn());
         }
     }
 
