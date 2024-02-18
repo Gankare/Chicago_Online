@@ -21,6 +21,7 @@ public class WaitingRoomButtons : MonoBehaviour
     private string previousUserData;
     private Dictionary<string, bool> previousReadyValues = new();
     private bool updating = false;
+    private int currentAmountOfPlayers;
 
     private void Start()
     {
@@ -328,6 +329,7 @@ public class WaitingRoomButtons : MonoBehaviour
                 players++;
             }
         }
+        currentAmountOfPlayers = players;
         amountOfPlayersText.text = $"{playersReady}/{players} players ready";
         updating = false;
     }
@@ -390,6 +392,7 @@ public class WaitingRoomButtons : MonoBehaviour
                             {
                                 card.color = Color.green;
                             }
+                            amountOfPlayersText.text = $"{currentAmountOfPlayers}/{currentAmountOfPlayers} players ready";
                         }
                     }
                 }

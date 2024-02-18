@@ -8,7 +8,8 @@ using Firebase.Database;
 using UnityEngine.UI;
 using TMPro;
 using Firebase.Extensions;
-using Unity.VisualScripting;
+using static CardScriptableObject;
+using System;
 
 public class GameController : MonoBehaviour
 {
@@ -180,6 +181,8 @@ public class GameController : MonoBehaviour
                     Debug.Log("Setting player turn true");
                 }
                 ListenForPlayerTurn();
+                yield return new WaitForSeconds(1);
+                DisplayScore();
             }
         }
     }
@@ -205,7 +208,6 @@ public class GameController : MonoBehaviour
             playerIndex = 0;
         }
 
-        DisplayScore();
         bool continueRound = true;
         IsMyTurn((isMyTurn) =>
         {
@@ -348,9 +350,10 @@ public class GameController : MonoBehaviour
                     string newValueAsString = newValue.ToString();
 
                     // Set the new string value back to the database
-                    var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("ScoreGameRound").SetValueAsync(newValueAsString);
+                    var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(newValueAsString);
                     yield return new WaitUntil(() => setScoreRound.IsCompleted);
-
+                    yield return StartCoroutine(UpdateFirebase());
+                    yield return StartCoroutine(UpdateScore());
                     DatabaseReference gameScoreRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
                     var newGetScoreRoundTask = gameDataRef.Child("scoreGameRound").GetValueAsync();
                     yield return new WaitUntil(() => newGetScoreRoundTask.IsCompleted);
@@ -373,8 +376,6 @@ public class GameController : MonoBehaviour
                 var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
                 yield return new WaitUntil(() => removeUserTurn.IsCompleted);
             }
-
-            StartCoroutine(UpdateScore());
             PassTurnToNextPlayer();
             roundIsActive = false;
         }
@@ -428,11 +429,12 @@ public class GameController : MonoBehaviour
     private List<CardScriptableObject> ShuffleDeck(List<CardScriptableObject> deck)
     {
         List<CardScriptableObject> shuffledDeck = new(deck);
+        System.Random random = new();
         int n = shuffledDeck.Count;
         while (n > 1)
         {
             n--;
-            int k = Random.Range(0, n + 1);
+            int k = random.Next(0, n + 1);
             CardScriptableObject value = shuffledDeck[k];
             shuffledDeck[k] = shuffledDeck[n];
             shuffledDeck[n] = value;
@@ -850,6 +852,7 @@ public class GameController : MonoBehaviour
     {
         // Retrieve hand values of all players from the database
         Dictionary<string, int> playerHandValues = new();
+        Dictionary<string, List<string>> playerHands = new(); // Assuming playerHands holds the cards for each player
 
         var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => getPlayersTask.IsCompleted);
@@ -867,25 +870,59 @@ public class GameController : MonoBehaviour
             string playerId = playerSnapshot.Key;
             int handValue = int.Parse(playerSnapshot.Child("userGameData").Child("handValue").Value.ToString());
             playerHandValues.Add(playerId, handValue);
+
+            // Assuming the cards are stored as strings in the database
+            List<string> cards = new();
+            foreach (var cardSnapshot in playerSnapshot.Child("userData").Child("userGameData").Child("hand").Children)
+            {
+                cards.Add(cardSnapshot.Value.ToString());
+            }
+            playerHands.Add(playerId, cards);
         }
 
-        // Find the player with the highest hand value
-        string highestScoringPlayerId = "";
+        // Find the player(s) with the highest hand value
         int highestScore = -1;
+        List<string> winningPlayerIds = new();
 
         foreach (var kvp in playerHandValues)
         {
             if (kvp.Value > highestScore)
             {
                 highestScore = kvp.Value;
-                highestScoringPlayerId = kvp.Key;
+                winningPlayerIds.Clear();
+                winningPlayerIds.Add(kvp.Key);
+            }
+            else if (kvp.Value == highestScore)
+            {
+                winningPlayerIds.Add(kvp.Key);
             }
         }
 
-        // Update the score for the highest scoring player directly
-        if (!string.IsNullOrEmpty(highestScoringPlayerId))
+        // If there's only one winning player, update their score directly
+        if (winningPlayerIds.Count == 1)
         {
-            var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(highestScoringPlayerId).Child("userGameData").Child("score").SetValueAsync(highestScore.ToString());
+            string winningPlayerId = winningPlayerIds[0];
+            int winningScore = highestScore;
+
+            // Add the winning score to the existing score in the database
+            var getPlayerScoreTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("score").GetValueAsync();
+            yield return new WaitUntil(() => getPlayerScoreTask.IsCompleted);
+
+            if (getPlayerScoreTask.Exception != null)
+            {
+                Debug.LogError("Error retrieving player score from Firebase.");
+                yield break;
+            }
+
+            int currentScore = 0;
+            if (getPlayerScoreTask.Result.Exists)
+            {
+                currentScore = int.Parse(getPlayerScoreTask.Result.Value.ToString());
+            }
+
+            int updatedScore = currentScore + winningScore;
+
+            var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("score").SetValueAsync(updatedScore.ToString());
             yield return new WaitUntil(() => setPlayerScore.IsCompleted);
 
             if (setPlayerScore.Exception != null)
@@ -893,7 +930,74 @@ public class GameController : MonoBehaviour
                 Debug.LogError("Error updating player score in Firebase.");
                 yield break;
             }
-            Debug.Log("Score updated for player: " + highestScoringPlayerId);
+            Debug.Log("Score updated for player: " + winningPlayerId);
+        }
+        else if (winningPlayerIds.Count > 1)
+        {
+            // If multiple players have the same highest score, compare their hands
+            int highestTotalHandValue = 0;
+            string winningPlayerId = null;
+
+            foreach (var playerId in winningPlayerIds)
+            {
+                List<string> cards = playerHands[playerId];
+                int totalHandValue = 0;
+
+                foreach (string card in cards)
+                {
+                    if (Enum.TryParse<CardHierarchy>(card, out CardHierarchy cardValue))
+                    {
+                        totalHandValue += (int)cardValue; // Sum up the value of each card
+                    }
+                    else
+                    {
+                        Debug.LogError("Invalid card value: " + card);
+                        yield break;
+                    }
+                }
+
+                if (totalHandValue > highestTotalHandValue)
+                {
+                    highestTotalHandValue = totalHandValue;
+                    winningPlayerId = playerId;
+                }
+                else if (totalHandValue == highestTotalHandValue)
+                {
+                    Debug.LogError("Both players have the same value hand, no one gets score");
+                    yield break;
+                }
+            }
+
+            // Update score for the winning player with the highest total hand value
+            if (winningPlayerId != null)
+            {
+                var getPlayerScoreTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("score").GetValueAsync();
+                yield return new WaitUntil(() => getPlayerScoreTask.IsCompleted);
+
+                if (getPlayerScoreTask.Exception != null)
+                {
+                    Debug.LogError("Error retrieving player score from Firebase.");
+                    yield break;
+                }
+
+                int currentScore = 0;
+                if (getPlayerScoreTask.Result.Exists)
+                {
+                    currentScore = int.Parse(getPlayerScoreTask.Result.Value.ToString());
+                }
+
+                int updatedScore = currentScore + highestTotalHandValue;
+
+                var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("score").SetValueAsync(updatedScore.ToString());
+                yield return new WaitUntil(() => setPlayerScore.IsCompleted);
+
+                if (setPlayerScore.Exception != null)
+                {
+                    Debug.LogError("Error updating player score in Firebase.");
+                    yield break;
+                }
+                Debug.Log("Score updated for player: " + winningPlayerId);
+            }
         }
         DisplayScore();
     }
