@@ -839,13 +839,13 @@ public class GameController : MonoBehaviour
 
         // Check for a royal straight flush
         return cardNumbers.SequenceEqual(new List<CardScriptableObject.CardHierarchy>
-{
-    CardScriptableObject.CardHierarchy.ten,
-    CardScriptableObject.CardHierarchy.Jack,
-    CardScriptableObject.CardHierarchy.Queen,
-    CardScriptableObject.CardHierarchy.King,
-    CardScriptableObject.CardHierarchy.Ace
-});
+        {
+            CardScriptableObject.CardHierarchy.ten,
+            CardScriptableObject.CardHierarchy.Jack,
+            CardScriptableObject.CardHierarchy.Queen,
+            CardScriptableObject.CardHierarchy.King,
+            CardScriptableObject.CardHierarchy.Ace
+        });
     }
 
     private IEnumerator UpdateScore()
@@ -942,14 +942,15 @@ public class GameController : MonoBehaviour
 
             foreach (var playerId in winningPlayerIds)
             {
-                List<string> cards = playerHands[playerId];
+                List<string> cardsInHighscoreHands = playerHands[playerId];
                 int totalHandValue = 0;
 
-                foreach (string card in cards)
+                foreach (string card in cardsInHighscoreHands)
                 {
                     if (Enum.TryParse<CardHierarchy>(card, out CardHierarchy cardValue))
                     {
                         totalHandValue += (int)cardValue; // Sum up the value of each card
+                        Debug.Log($"Card: {card}, Value: {(int)cardValue}, Total Hand Value: {totalHandValue}");
                     }
                     else
                     {
@@ -963,6 +964,7 @@ public class GameController : MonoBehaviour
                     highestTotalHandValue = totalHandValue;
                     winningPlayerId = playerId;
                 }
+               
                 else if (totalHandValue == highestTotalHandValue)
                 {
                     Debug.LogError("Both players have the same value hand, no one gets score");
@@ -973,22 +975,24 @@ public class GameController : MonoBehaviour
             // Update score for the winning player with the highest total hand value
             if (winningPlayerId != null)
             {
+                Debug.Log(highestTotalHandValue);
                 var getPlayerScoreTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("score").GetValueAsync();
-                yield return new WaitUntil(() => getPlayerScoreTask.IsCompleted);
+                var getPlayerHandValueTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("handValue").GetValueAsync();
+                yield return new WaitUntil(() => getPlayerScoreTask.IsCompleted && getPlayerHandValueTask.IsCompleted);
 
                 if (getPlayerScoreTask.Exception != null)
                 {
                     Debug.LogError("Error retrieving player score from Firebase.");
                     yield break;
                 }
-
+                int handValue = int.Parse(getPlayerHandValueTask.Result.Value.ToString());
                 int currentScore = 0;
                 if (getPlayerScoreTask.Result.Exists)
                 {
                     currentScore = int.Parse(getPlayerScoreTask.Result.Value.ToString());
                 }
 
-                int updatedScore = currentScore + highestTotalHandValue;
+                int updatedScore = currentScore + handValue;
 
                 var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("score").SetValueAsync(updatedScore.ToString());
                 yield return new WaitUntil(() => setPlayerScore.IsCompleted);

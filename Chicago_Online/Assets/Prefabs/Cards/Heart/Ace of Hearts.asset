@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cardSuit: 2
   cardNumber: 14
-  power: 0
-  cardSprite: {fileID: 0}
+  power: 14
+  cardSprite: {fileID: -1503408425, guid: 0afc290f2fe603840b0c9328f1220a4e, type: 3}
+  cardId: HeartsAce
