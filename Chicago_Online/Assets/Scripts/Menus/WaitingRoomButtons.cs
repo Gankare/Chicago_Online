@@ -299,11 +299,11 @@ public class WaitingRoomButtons : MonoBehaviour
                     if (readyValue)
                     {
                         playersReady++;
-                        readyCards[players].color = Color.green;
+                        readyCards[players].color = new Color(108, 166, 65); //Green
                     }
                     else
                     {
-                        readyCards[players].color = Color.white;
+                        readyCards[players].color = new Color(70, 61, 79); //Normal - purple
                     }
                 }
 
