@@ -181,8 +181,6 @@ public class GameController : MonoBehaviour
                     Debug.Log("Setting player turn true");
                 }
                 ListenForPlayerTurn();
-                yield return new WaitForSeconds(1);
-                DisplayScore();
             }
         }
     }
@@ -518,6 +516,7 @@ public class GameController : MonoBehaviour
         var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
         yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted);
+
     }
     private IEnumerator UpdateLocalDataFromFirebase()
     {
@@ -580,6 +579,7 @@ public class GameController : MonoBehaviour
                 }
             }
         }
+        yield return StartCoroutine(DisplayScore());
     }
     #endregion
 
@@ -931,6 +931,8 @@ public class GameController : MonoBehaviour
                 yield break;
             }
             Debug.Log("Score updated for player: " + winningPlayerId);
+            yield return StartCoroutine(DisplayScore());
+            yield break;
         }
         else if (winningPlayerIds.Count > 1)
         {
@@ -997,66 +999,64 @@ public class GameController : MonoBehaviour
                     yield break;
                 }
                 Debug.Log("Score updated for player: " + winningPlayerId);
+                yield return StartCoroutine(DisplayScore());
             }
         }
-        DisplayScore();
     }
-
-    public void DisplayScore()
+    public IEnumerator DisplayScore()
     {
         Debug.Log("trying to show score");
         // Retrieve scores of all players from the database
-        Dictionary<string, int> playerScoreDictionary = new();
+        Dictionary<string, int> playerScoreDictionary = new Dictionary<string, int>();
 
         var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
-        getPlayersTask.ContinueWith(task =>
+        yield return new WaitUntil(() => getPlayersTask.IsCompleted);
+
+        if (getPlayersTask.IsFaulted)
         {
-            if (task.IsFaulted)
+            Debug.LogError("Error retrieving player data from Firebase: " + getPlayersTask.Exception);
+            yield break;
+        }
+
+        DataSnapshot playersSnapshot = getPlayersTask.Result;
+
+        foreach (var playerSnapshot in playersSnapshot.Children)
+        {
+            string playerId = playerSnapshot.Key;
+            int score = 0; // Default score to 0
+
+            // If the player has a score value, retrieve it
+            if (playerSnapshot.Child("userGameData").Child("score").Exists)
             {
-                Debug.LogError("Error retrieving player data from Firebase: " + task.Exception);
-                return;
+                score = int.Parse(playerSnapshot.Child("userGameData").Child("score").Value.ToString());
             }
 
-            DataSnapshot playersSnapshot = task.Result;
+            playerScoreDictionary.Add(playerId, score);
+        }
 
-            foreach (var playerSnapshot in playersSnapshot.Children)
+        int currentPlayer = 0;
+        // Fetch usernames for player IDs
+        foreach (var kvp in playerScoreDictionary)
+        {
+            string playerId = kvp.Key;
+            int score = kvp.Value;
+
+            // Fetch username for the player ID
+            var getUsernameTask = DataSaver.instance.dbRef.Child("users").Child(playerId).Child("userName").GetValueAsync();
+            yield return new WaitUntil(() => getUsernameTask.IsCompleted);
+
+            if (getUsernameTask.IsFaulted)
             {
-                string playerId = playerSnapshot.Key;
-                int score = 0; // Default score to 0
-
-                // If the player has a score value, retrieve it
-                if (playerSnapshot.Child("userGameData").Child("score").Exists)
-                {
-                    score = int.Parse(playerSnapshot.Child("userGameData").Child("score").Value.ToString());
-                }
-
-                playerScoreDictionary.Add(playerId, score);
+                Debug.LogError("Error retrieving username for player " + playerId + ": " + getUsernameTask.Exception);
+                yield break;
             }
 
-            int currentPlayer = 0;
-            // Fetch usernames for player IDs
-            foreach (var kvp in playerScoreDictionary)
-            {
-                string playerId = kvp.Key;
-                int score = kvp.Value;
-
-                // Fetch username for the player ID
-                var getUsernameTask = DataSaver.instance.dbRef.Child("users").Child(playerId).Child("userName").GetValueAsync();
-                getUsernameTask.ContinueWith(usernameTask =>
-                {
-                    if (usernameTask.IsFaulted)
-                    {
-                        Debug.LogError("Error retrieving username for player " + playerId + ": " + usernameTask.Exception);
-                        return;
-                    }
-
-                    string username = usernameTask.Result.Value.ToString();
-                    playerScores[currentPlayer].text = $"{username}: {score}";
-                    currentPlayer++;
-                });
-            }
-        });
+            string username = getUsernameTask.Result.Value.ToString();
+            playerScores[currentPlayer].text = $"{username}: {score}";
+            currentPlayer++;
+        }
     }
+
     #endregion
 
     #region Gambit
