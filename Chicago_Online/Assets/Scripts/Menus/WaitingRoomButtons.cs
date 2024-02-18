@@ -408,7 +408,11 @@ public class WaitingRoomButtons : MonoBehaviour
                 }
 
                 if (i == 0 && countDownActive)
-                    StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
+                {
+
+                    yield return StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
+                    yield break;
+                }
                 else
                 yield return new WaitForSeconds(1);
             }

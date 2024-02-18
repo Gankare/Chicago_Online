@@ -12,29 +12,63 @@ public class UserTurnText : MonoBehaviour
 
     void Start()
     {
+        userTurn.text = "";
         serverId = ServerManager.instance.serverId;
         if (string.IsNullOrEmpty(serverId))
         {
             Debug.LogError("Server ID is not set. Please assign a valid server ID.");
             return;
         }
+        Invoke(nameof(AddListeners), 1f);
+    }
 
-        // Reference to the path where the players information is stored
-        string playersPath = "servers/" + serverId + "/players";
-
-        // Set the reference to where the players information is stored in your database
-        DataSaver.instance.dbRef = DataSaver.instance.dbRef.Child(playersPath);
+    private void AddListeners()
+    {
+        DatabaseReference playersRef = DataSaver.instance.dbRef
+            .Child("servers")
+            .Child(serverId)
+            .Child("players");
 
         // Listen for changes in the players' data
-        DataSaver.instance.dbRef.ValueChanged += PlayersDataChanged;
+        playersRef.ValueChanged += PlayersDataChanged;
     }
 
     private void OnDestroy()
     {
         // Remove the event listener when the object is destroyed
-        if (DataSaver.instance.dbRef != null)
+        DatabaseReference playersRef = DataSaver.instance.dbRef
+            .Child("servers")
+            .Child(serverId)
+            .Child("players");
+
+        // Remove the event listener
+        playersRef.ValueChanged -= PlayersDataChanged;
+    }
+
+    private IEnumerator FetchUsername(string playerId)
+    {
+        DatabaseReference userRef = DataSaver.instance.dbRef.Child("users").Child(playerId);
+
+        var fetchTask = userRef.Child("userName").GetValueAsync();
+        yield return new WaitUntil(() => fetchTask.IsCompleted);
+
+        if (fetchTask.Exception != null)
         {
-            DataSaver.instance.dbRef.ValueChanged -= PlayersDataChanged;
+            Debug.LogError("Failed to fetch username for user ID: " + playerId);
+            yield break;
+        }
+
+        DataSnapshot snapshot = fetchTask.Result;
+        if (snapshot.Exists)
+        {
+            string username = snapshot.Value.ToString();
+            userTurn.text = $"Turn: {username}";
+            userTurn.gameObject.SetActive(false);
+            userTurn.gameObject.SetActive(true);
+        }
+        else
+        {
+            Debug.LogError("User with ID " + playerId + " does not exist.");
         }
     }
 
@@ -50,31 +84,7 @@ public class UserTurnText : MonoBehaviour
 
                 if (isTurn != null && (bool)isTurn)
                 {
-                    // Now, assuming you have another reference to the database where user details are stored
-                    DatabaseReference userRef = DataSaver.instance.dbRef.Child("users").Child(playerId);
-
-                    // Fetch the username from the user's details
-                    userRef.Child("userName").GetValueAsync().ContinueWith(task =>
-                    {
-                        if (task.IsFaulted)
-                        {
-                            Debug.LogError("Failed to fetch username for user ID: " + playerId);
-                        }
-                        else if (task.IsCompleted)
-                        {
-                            DataSnapshot snapshot = task.Result;
-                            if (snapshot.Exists)
-                            {
-                                // Update the text to display the username of the user whose turn it is
-                                string username = snapshot.Value.ToString();
-                                userTurn.text = "Turn: " + username;
-                            }
-                            else
-                            {
-                                Debug.LogError("User with ID " + playerId + " does not exist.");
-                            }
-                        }
-                    });
+                    StartCoroutine(FetchUsername(playerId));
                     break; // Exit loop after finding the player whose turn it is
                 }
             }
