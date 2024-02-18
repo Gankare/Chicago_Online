@@ -423,6 +423,7 @@ public class GameController : MonoBehaviour
             if (shuffledDeck.Count == 0)
             {
                 Debug.LogWarning("Deck is empty.");
+                StartCoroutine(DeckEmptyReShuffle());
                 return;
             }
             CardScriptableObject drawnCard = shuffledDeck[0];
@@ -433,6 +434,15 @@ public class GameController : MonoBehaviour
             }
             shuffledDeck.RemoveAt(0);
         }
+    }
+    IEnumerator DeckEmptyReShuffle()
+    {
+        foreach (CardScriptableObject card in discardPile)
+        {
+            deck.Add(card);
+        }
+        discardPile.Clear();
+        yield return StartCoroutine(ShuffleAndDealOwnCards(deck));
     }
 
     IEnumerator DisplayCardsDrawn()
