@@ -10,6 +10,7 @@ using TMPro;
 using Firebase.Extensions;
 using static CardScriptableObject;
 using System;
+using System.Text.RegularExpressions;
 
 public class GameController : MonoBehaviour
 {
@@ -19,6 +20,8 @@ public class GameController : MonoBehaviour
         distributionOfCards,
         gambit
     }
+    Regex suitRegex = new Regex(@"(Hearts|Diamonds|Clubs|Spades)");
+    Regex numberRegex = new Regex(@"(two|three|four|five|six|seven|eight|nine|ten|Jack|Queen|King|Ace)");
     public int currentGameState;
     public List<CardScriptableObject> allCards = new();
     public List<CardScriptableObject> deck = new();
@@ -853,7 +856,7 @@ public class GameController : MonoBehaviour
         // Retrieve hand values of all players from the database
         Dictionary<string, int> playerHandValues = new();
         Dictionary<string, List<string>> playerHands = new(); // Assuming playerHands holds the cards for each player
-
+        
         var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => getPlayersTask.IsCompleted);
 
@@ -863,7 +866,7 @@ public class GameController : MonoBehaviour
             yield break;
         }
 
-        DataSnapshot playersSnapshot = getPlayersTask.Result;
+        var playersSnapshot = getPlayersTask.Result;
 
         foreach (var playerSnapshot in playersSnapshot.Children)
         {
@@ -873,11 +876,15 @@ public class GameController : MonoBehaviour
 
             // Assuming the cards are stored as strings in the database
             List<string> cards = new();
-            foreach (var cardSnapshot in playerSnapshot.Child("userData").Child("userGameData").Child("hand").Children)
+            foreach (var cardSnapshot in playerSnapshot.Child("userGameData").Child("hand").Children)
             {
                 cards.Add(cardSnapshot.Value.ToString());
+                Debug.Log(cards);
             }
             playerHands.Add(playerId, cards);
+
+            // Debug logging to verify the contents of playerHands
+            Debug.Log($"Player {playerId} hand: {string.Join(", ", cards)}");
         }
 
         // Find the player(s) with the highest hand value
@@ -945,26 +952,47 @@ public class GameController : MonoBehaviour
                 List<string> cardsInHighscoreHands = playerHands[playerId];
                 int totalHandValue = 0;
 
+                Debug.Log($"Player ID: {playerId}");
+
                 foreach (string card in cardsInHighscoreHands)
                 {
-                    if (Enum.TryParse<CardHierarchy>(card, out CardHierarchy cardValue))
+                    Match suitMatch = suitRegex.Match(card);
+                    Match numberMatch = numberRegex.Match(card);
+
+                    if (suitMatch.Success && numberMatch.Success)
                     {
-                        totalHandValue += (int)cardValue; // Sum up the value of each card
-                        Debug.Log($"Card: {card}, Value: {(int)cardValue}, Total Hand Value: {totalHandValue}");
+                        // Extract suit and number from the card string
+                        string suitStr = suitMatch.Value;
+                        string numberStr = numberMatch.Value;
+
+                        // Convert the number string to its corresponding enum value
+                        if (Enum.TryParse<CardScriptableObject.Suit>(suitStr, out CardScriptableObject.Suit cardSuit) &&
+                            Enum.TryParse<CardScriptableObject.CardHierarchy>(numberStr, out CardScriptableObject.CardHierarchy cardNumber))
+                        {
+                            int cardValue = (int)cardNumber;
+                            totalHandValue += cardValue; // Sum up the value of each card
+                            Debug.Log($"Card: {card}, Value: {cardValue}, Total Hand Value: {totalHandValue}");
+                        }
+                        else
+                        {
+                            Debug.LogError("Invalid card format: " + card);
+                            yield break;
+                        }
                     }
                     else
                     {
-                        Debug.LogError("Invalid card value: " + card);
+                        Debug.LogError("Invalid card format: " + card);
                         yield break;
                     }
                 }
+
+                Debug.Log($"Total Hand Value for Player ID {playerId}: {totalHandValue}");
 
                 if (totalHandValue > highestTotalHandValue)
                 {
                     highestTotalHandValue = totalHandValue;
                     winningPlayerId = playerId;
                 }
-               
                 else if (totalHandValue == highestTotalHandValue)
                 {
                     Debug.LogError("Both players have the same value hand, no one gets score");
@@ -1007,11 +1035,12 @@ public class GameController : MonoBehaviour
             }
         }
     }
+
     public IEnumerator DisplayScore()
     {
         Debug.Log("trying to show score");
         // Retrieve scores of all players from the database
-        Dictionary<string, int> playerScoreDictionary = new Dictionary<string, int>();
+        Dictionary<string, int> playerScoreDictionary = new();
 
         var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => getPlayersTask.IsCompleted);
