@@ -20,8 +20,6 @@ public class GameController : MonoBehaviour
         distributionOfCards,
         gambit
     }
-    Regex suitRegex = new Regex(@"(Hearts|Diamonds|Clubs|Spades)");
-    Regex numberRegex = new Regex(@"(two|three|four|five|six|seven|eight|nine|ten|Jack|Queen|King|Ace)");
     public int currentGameState;
     public List<CardScriptableObject> allCards = new();
     public List<CardScriptableObject> deck = new();
@@ -43,6 +41,8 @@ public class GameController : MonoBehaviour
     private bool roundIsActive = false;
     private bool turnEndedEarly = false;
     private DatabaseReference turnTimerRef;
+    private Regex suitRegex = new Regex(@"(Hearts|Diamonds|Clubs|Spades)");
+    private Regex numberRegex = new Regex(@"(two|three|four|five|six|seven|eight|nine|ten|Jack|Queen|King|Ace)");
 
     private void Awake()
     {
