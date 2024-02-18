@@ -30,16 +30,16 @@ public class GameController : MonoBehaviour
     public List<string> firebaseDiscardPile = new();
     public List<string> firebaseDeck = new();
     public List<string> firebaseHand = new();
-    public List<string> playerIds = new(); // List of player IDs
+    public List<string> playerIds = new(); 
     public List<TMP_Text> playerScores = new();
     public List<GameObject> selectedCardObjects = new();
     public Transform handSlot;
     public TMP_Text turnTimerText;
     public GameObject endTurnButton;
-    private float turnTimer = 0f; // Timer for the player's turn
-    private float turnDuration = 20f; // Time duration for each player's turn
+    private float turnTimer = 0f; 
+    private float turnDuration = 20f; 
     private string serverId;
-    private int playerIndex = 0; // Index of the current player
+    private int playerIndex = 0; 
     private bool roundIsActive = false;
     private bool turnEndedEarly = false;
     private DatabaseReference turnTimerRef;
@@ -60,7 +60,6 @@ public class GameController : MonoBehaviour
 
     private void ListenForPlayerTurn()
     {
-        // Get the reference to the player's isTurn value in the database
         DatabaseReference isTurnRef = DataSaver.instance.dbRef
             .Child("servers")
             .Child(serverId)
@@ -69,20 +68,16 @@ public class GameController : MonoBehaviour
             .Child("userGameData")
             .Child("isTurn");
 
-        // Add a listener for changes in the isTurn value
         isTurnRef.ValueChanged += PlayerTurnValueChanged;
     }
 
     private void PlayerTurnValueChanged(object sender, ValueChangedEventArgs args)
     {
-        // Check if the value changed and if it became true
         if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
         {
             bool isTurn = (bool)args.Snapshot.Value;
             if (isTurn)
             {
-                Debug.Log("Start Turn");
-                // Start the next round when a player's turn becomes true
                 StartCoroutine(StartNextRound());
             }
         }
@@ -90,14 +85,13 @@ public class GameController : MonoBehaviour
     private void ListenForTurnTimerChanges()
     {
         turnTimerRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("turnTimer");
-        // Listen for changes in the turn timer value
+
         turnTimerRef.ValueChanged += TurnTimerValueChanged;
     }
     private void TurnTimerValueChanged(object sender, ValueChangedEventArgs args)
     {
         if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
         {
-            // Update the local turn timer based on the database value
             if (float.TryParse(args.Snapshot.Value.ToString(), out float newTurnTimer))
             {
                 turnTimer = newTurnTimer;
@@ -117,7 +111,7 @@ public class GameController : MonoBehaviour
     IEnumerator SetStartDeck()
     {
         currentGameState = (int)Gamestate.distributionOfCards;
-        deck = allCards.ToList(); // Create a copy of allCards
+        deck = allCards.ToList();
         firebaseDeck = deck.Select(card => card.cardId).ToList();
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
         var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
@@ -148,16 +142,13 @@ public class GameController : MonoBehaviour
             .Child("userGameData")
             .Child("isTurn");
 
-        // Add a listener for changes in the isTurn value
         isTurnRef.ValueChanged -= PlayerTurnValueChanged;
     }
     private IEnumerator InitializeGameData()
     {
-        // Get the list of player IDs and initialize their round counters in the database
         var getPlayerIdsTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => getPlayerIdsTask.IsCompleted);
 
-        // Check if the task was successful
         if (getPlayerIdsTask.IsCompleted)
         {
             DataSnapshot snapshot = getPlayerIdsTask.Result;    
@@ -167,7 +158,6 @@ public class GameController : MonoBehaviour
                 {
                     string id = childSnapshot.Key;
                     playerIds.Add(id);
-                    // Initialize round counter for each player
                 }
                     var setPlayerHandNull = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync("");
                     var setTurnFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("isTurn").SetValueAsync(false);
@@ -181,9 +171,9 @@ public class GameController : MonoBehaviour
                 {
                     var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
                     yield return new WaitUntil(() => setTurnTrue.IsCompleted);
-                    Debug.Log("Setting player turn true");
                 }
                 ListenForPlayerTurn();
+                yield return StartCoroutine(DisplayScore());
             }
         }
     }
@@ -216,7 +206,7 @@ public class GameController : MonoBehaviour
                 continueRound = false;
         });
 
-        yield return StartCoroutine(UpdateLocalDataFromFirebase()); // Wait for data update from Firebase
+        yield return StartCoroutine(UpdateLocalDataFromFirebase()); 
         yield return new WaitForSeconds(1);
         if (!continueRound)
         {
@@ -226,10 +216,9 @@ public class GameController : MonoBehaviour
 
         roundIsActive = true;
         playerIndex = playerIds.IndexOf(DataSaver.instance.userId);
-        Debug.Log("Starting turn for player: " + playerIndex);
         string currentPlayerId = playerIds[playerIndex];
 
-        if (currentGameState == (int)Gamestate.distributionOfCards)
+        if (currentGameState == (int)Gamestate.distributionOfCards || currentGameState == (int)Gamestate.gambit) //Remove gambit when functionallity is added
         {
             #region GiveCards
             if (currentPlayerId == DataSaver.instance.userId)
@@ -285,34 +274,26 @@ public class GameController : MonoBehaviour
 
     private IEnumerator PlayerTurnTimer()
     {
-        // Set the initial turn timer value
         turnTimer = turnDuration;
 
-        // Loop until the turn timer runs out
         while (turnTimer > 0f)
         {
-            // Check if the current player is the one who has the turn
             string currentPlayerId = playerIds[playerIndex];
             if (currentPlayerId == DataSaver.instance.userId)
             {
                 turnTimer -= Time.deltaTime;
-                // Update the turn timer on the server
                 turnTimerRef.SetValueAsync(turnTimer);
             }
-
-            // Check if the turn timer has run out
             if (turnTimer <= 0f)
             {
                 if (currentPlayerId == DataSaver.instance.userId && !turnEndedEarly)
                 {
                     ThrowCards();
                 }
-                // End the player's turn if the timer runs out
                 StartCoroutine(EndPlayerTurn());
-                yield break; // Exit the coroutine
+                yield break; 
             }
-
-            yield return null; // Wait for the next frame
+            yield return null;
         }
     }
 
@@ -336,7 +317,6 @@ public class GameController : MonoBehaviour
                 int currentGameRound = int.Parse(getGameRoundTask.Result.Value.ToString());
                 int playerCount = playerIds.Count;
 
-                // Check if the current game round is divisible by the number of players, if all players have 
                 if (currentGameRound % playerCount == 0)
                 {
                     var setGameRoundTask = gameDataRef.Child("currentGameRound").SetValueAsync(0);
@@ -344,13 +324,9 @@ public class GameController : MonoBehaviour
                     yield return new WaitUntil(() => getLastScoreRound.IsCompleted && setGameRoundTask.IsCompleted);
 
                     string currentValue = getLastScoreRound.Result.Value.ToString();
-                    // Increment the current value
                     int newValue = int.Parse(currentValue) + 1;
-
-                    // Convert the new value to a string
                     string newValueAsString = newValue.ToString();
 
-                    // Set the new string value back to the database
                     var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(newValueAsString);
                     yield return new WaitUntil(() => setScoreRound.IsCompleted);
                     yield return StartCoroutine(UpdateFirebase());
@@ -395,8 +371,6 @@ public class GameController : MonoBehaviour
         {
             isMyTurn = (bool)isTurnSnapshotTask.Result.Value;
         }
-
-        Debug.Log("Is it my turn? " + isMyTurn);
         callback?.Invoke(isMyTurn);
     }
 
@@ -412,16 +386,14 @@ public class GameController : MonoBehaviour
         int nextIndex = (currentIndex + 1) % playerIds.Count;
         string nextPlayerId = playerIds[nextIndex];
 
-        // Update the database to indicate it's the next player's turn
         DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(nextPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
     }
 
     private IEnumerator ShuffleAndDealOwnCards(List<CardScriptableObject> deckToShuffle)
     {
-        // Shuffle the deck locally
         List<CardScriptableObject> shuffledDeck = ShuffleDeck(deckToShuffle);
         deck = shuffledDeck;
-        // Deal cards to the local player
+
         DealCards(deck);
         StartCoroutine(DisplayCardsDrawn());
         yield return null;
@@ -445,37 +417,28 @@ public class GameController : MonoBehaviour
 
     private void DealCards(List<CardScriptableObject> shuffledDeck)
     {
-        int cardsNeeded = 5 - hand.Count; // Calculate how many cards are needed to reach 5
+        int cardsNeeded = 5 - hand.Count;
         for (int i = 0; i < cardsNeeded; i++)
         {
             if (shuffledDeck.Count == 0)
             {
                 Debug.LogWarning("Deck is empty.");
-                //Discardpile into deck fix a function
                 return;
             }
-
-            // Draw a card from the top of the deck
             CardScriptableObject drawnCard = shuffledDeck[0];
 
-            // Check if the drawn card is already in the hand
             if (!hand.Contains(drawnCard))
             {
-                // Add the card ID to the player's hand
                 hand.Add(drawnCard);
             }
-
-            // Remove the card from the deck
             shuffledDeck.RemoveAt(0);
         }
     }
 
     IEnumerator DisplayCardsDrawn()
     {
-        // Iterate through the hand
         foreach (CardScriptableObject slot in hand)
         {
-            // Check if the card is already displayed
             bool cardAlreadyDisplayed = false;
             foreach (Transform cardTransform in handSlot)
             {
@@ -486,8 +449,6 @@ public class GameController : MonoBehaviour
                     break;
                 }
             }
-
-            // If the card is not already displayed, instantiate it
             if (!cardAlreadyDisplayed)
             {
                 var currentCard = Instantiate(card, handSlot);
@@ -523,23 +484,20 @@ public class GameController : MonoBehaviour
     }
     private IEnumerator UpdateLocalDataFromFirebase()
     {
-        // Clear the local lists
         deck.Clear();
         hand.Clear();
         discardPile.Clear();
 
-        // Retrieve card IDs from Firebase and convert them back to CardScriptableObject instances
         var getServerDeckTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").GetValueAsync();
         var getServerDiscardPileTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").GetValueAsync();
         var getUserHandTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").GetValueAsync();
 
-        // Wait until all data retrieval tasks are completed
         yield return new WaitUntil(() => getServerDeckTask.IsCompleted && getServerDiscardPileTask.IsCompleted && getUserHandTask.IsCompleted);
 
         if (getServerDeckTask.Exception != null || getServerDiscardPileTask.Exception != null || getUserHandTask.Exception != null)
         {
             Debug.LogError("Error retrieving data from Firebase.");
-            yield break; //may have to remove this if it thinks that its a error that it returns a null
+            yield break;
         }
 
         DataSnapshot userHandSnapshot = getUserHandTask.Result;
@@ -589,13 +547,12 @@ public class GameController : MonoBehaviour
     #region PlayerCardActions
     public void SelectCardToThrow(GameObject cardObject)
     {
-        // If the card is already selected, deselect it
         if (selectedCardObjects.Contains(cardObject))
         {
             selectedCardObjects.Remove(cardObject);
             cardObject.GetComponent<Image>().color = Color.white;
         }
-        else // If the card is not selected, select it
+        else
         {
             selectedCardObjects.Add(cardObject);
             cardObject.GetComponent<Image>().color = Color.red;
@@ -615,15 +572,12 @@ public class GameController : MonoBehaviour
                     hand.Remove(cardToRemove);
                     discardPile.Add(cardToRemove);
                     Destroy(selectedCardObject);
-                    Debug.Log("Card thrown: " + cardToRemove.cardId);
                 }
                 else
                 {
                     Debug.LogError("Failed to find card with ID: " + cardInfo.cardId);
                 }
             }
-
-            // Clear the list of selected card objects
             selectedCardObjects.Clear();
             turnEndedEarly = true;
             turnTimer = 0;
@@ -650,16 +604,12 @@ public class GameController : MonoBehaviour
     #region CountValueOfHand
     private IEnumerator CountAndSetValueOfHand(List<CardScriptableObject> playerHand)
     {
-        // Calculate the score for the player's hand
         int score = CalculateScore(playerHand);
-
-        // Save the player's hand value to the database
         var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(score);
         yield return new WaitUntil(() => setUserHandValue.IsCompleted);
     }
     private int CalculateScore(List<CardScriptableObject> playerCards)
     {
-        // Count occurrences of each card number and suit
         Dictionary<CardScriptableObject.CardHierarchy, int> cardNumberCount = new();
         Dictionary<CardScriptableObject.Suit, int> cardSuitCount = new();
 
@@ -801,9 +751,6 @@ public class GameController : MonoBehaviour
 
     private bool CheckForStraightFlush(List<CardScriptableObject.CardHierarchy> cardNumbers, Dictionary<CardScriptableObject.Suit, int> cardSuitCount)
     {
-        // Implement logic to check for a straight flush (five consecutive cards of the same suit)
-        // Return true if a straight flush is found, false otherwise
-
         // Check for a flush first
         bool hasFlush = cardSuitCount.Any(pair => pair.Value >= 5);
 
@@ -829,9 +776,6 @@ public class GameController : MonoBehaviour
 
     private bool CheckForRoyalStraightFlush(List<CardScriptableObject.CardHierarchy> cardNumbers, Dictionary<CardScriptableObject.Suit, int> cardSuitCount)
     {
-        // Implement logic to check for a royal straight flush
-        // Return true if a royal straight flush is found, false otherwise
-
         // Check for a straight flush first
         bool hasStraightFlush = CheckForStraightFlush(cardNumbers, cardSuitCount);
 
@@ -853,9 +797,8 @@ public class GameController : MonoBehaviour
 
     private IEnumerator UpdateScore()
     {
-        // Retrieve hand values of all players from the database
         Dictionary<string, int> playerHandValues = new();
-        Dictionary<string, List<string>> playerHands = new(); // Assuming playerHands holds the cards for each player
+        Dictionary<string, List<string>> playerHands = new();
         
         var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => getPlayersTask.IsCompleted);
@@ -874,16 +817,12 @@ public class GameController : MonoBehaviour
             int handValue = int.Parse(playerSnapshot.Child("userGameData").Child("handValue").Value.ToString());
             playerHandValues.Add(playerId, handValue);
 
-            // Assuming the cards are stored as strings in the database
             List<string> cards = new();
             foreach (var cardSnapshot in playerSnapshot.Child("userGameData").Child("hand").Children)
             {
                 cards.Add(cardSnapshot.Value.ToString());
-                Debug.Log(cards);
             }
             playerHands.Add(playerId, cards);
-
-            // Debug logging to verify the contents of playerHands
             Debug.Log($"Player {playerId} hand: {string.Join(", ", cards)}");
         }
 
@@ -911,7 +850,6 @@ public class GameController : MonoBehaviour
             string winningPlayerId = winningPlayerIds[0];
             int winningScore = highestScore;
 
-            // Add the winning score to the existing score in the database
             var getPlayerScoreTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("score").GetValueAsync();
             yield return new WaitUntil(() => getPlayerScoreTask.IsCompleted);
 
@@ -1038,8 +976,6 @@ public class GameController : MonoBehaviour
 
     public IEnumerator DisplayScore()
     {
-        Debug.Log("trying to show score");
-        // Retrieve scores of all players from the database
         Dictionary<string, int> playerScoreDictionary = new();
 
         var getPlayersTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
@@ -1056,9 +992,8 @@ public class GameController : MonoBehaviour
         foreach (var playerSnapshot in playersSnapshot.Children)
         {
             string playerId = playerSnapshot.Key;
-            int score = 0; // Default score to 0
+            int score = 0;
 
-            // If the player has a score value, retrieve it
             if (playerSnapshot.Child("userGameData").Child("score").Exists)
             {
                 score = int.Parse(playerSnapshot.Child("userGameData").Child("score").Value.ToString());
