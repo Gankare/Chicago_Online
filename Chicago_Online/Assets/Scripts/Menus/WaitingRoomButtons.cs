@@ -8,6 +8,7 @@ using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
 using System;
+using static UnityEditor.Experimental.GraphView.GraphView;
 
 public class WaitingRoomButtons : MonoBehaviour
 {
@@ -299,11 +300,11 @@ public class WaitingRoomButtons : MonoBehaviour
                     if (readyValue)
                     {
                         playersReady++;
-                        readyCards[players].color = new Color(108, 166, 65); //Green
+                        readyCards[players].color = new Color(108f / 255f, 166f / 255f, 65f / 255f); // Green
                     }
                     else
                     {
-                        readyCards[players].color = new Color(70, 61, 79); //Normal - purple
+                        readyCards[players].color = new Color(70f / 255f, 61f / 255f, 79f / 255f); // Purple
                     }
                 }
 
@@ -390,7 +391,7 @@ public class WaitingRoomButtons : MonoBehaviour
                         {
                             foreach (Image card in readyCards)
                             {
-                                card.color = Color.green;
+                                card.color = new Color(108f / 255f, 166f / 255f, 65f / 255f); // Green
                             }
                             amountOfPlayersText.text = $"{currentAmountOfPlayers}/{currentAmountOfPlayers} players ready";
                         }
