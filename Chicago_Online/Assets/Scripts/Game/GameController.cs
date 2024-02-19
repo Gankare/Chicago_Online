@@ -41,8 +41,9 @@ public class GameController : MonoBehaviour
     private bool roundIsActive = false;
     private bool turnEndedEarly = false;
     private DatabaseReference turnTimerRef;
-    private Regex suitRegex = new Regex(@"(Hearts|Diamonds|Clubs|Spades)");
-    private Regex numberRegex = new Regex(@"(two|three|four|five|six|seven|eight|nine|ten|Jack|Queen|King|Ace)");
+    private Regex suitRegex = new (@"(Hearts|Diamonds|Clubs|Spades)");
+    private Regex numberRegex = new (@"(two|three|four|five|six|seven|eight|nine|ten|Jack|Queen|King|Ace)");
+    private bool gameOver;
 
     private void Awake()
     {
@@ -266,7 +267,7 @@ public class GameController : MonoBehaviour
         else if (currentGameState == (int)Gamestate.gambit)
         {
             #region PlayCards
-
+            StartCoroutine(Playout());
             #endregion
         }
         StartCoroutine(PlayerTurnTimer());
@@ -301,7 +302,7 @@ public class GameController : MonoBehaviour
     {
         string currentPlayerId = playerIds[playerIndex];
 
-        if (currentPlayerId == DataSaver.instance.userId)
+        if (currentPlayerId == DataSaver.instance.userId) //&& currentGameState == (int)Gamestate.distributionOfCards -- Add later
         {
             endTurnButton.SetActive(false);
             DealCards(deck);
@@ -323,31 +324,25 @@ public class GameController : MonoBehaviour
                     var getLastScoreRound = gameDataRef.Child("scoreGameRound").GetValueAsync();
                     yield return new WaitUntil(() => getLastScoreRound.IsCompleted && setGameRoundTask.IsCompleted);
 
-                    string currentValue = getLastScoreRound.Result.Value.ToString();
-                    int newValue = int.Parse(currentValue) + 1;
-                    string newValueAsString = newValue.ToString();
+                    string currentScoreRoundValue = getLastScoreRound.Result.Value.ToString();
+                    int newScoreRoundValue = int.Parse(currentScoreRoundValue) + 1;
+                    string newScoreRoundString = newScoreRoundValue.ToString();
 
-                    var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(newValueAsString);
+                    var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(newScoreRoundString);
                     yield return new WaitUntil(() => setScoreRound.IsCompleted);
                     yield return StartCoroutine(UpdateFirebase());
                     yield return StartCoroutine(UpdateScore());
-                    DatabaseReference gameScoreRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
-                    var newGetScoreRoundTask = gameDataRef.Child("scoreGameRound").GetValueAsync();
-                    yield return new WaitUntil(() => newGetScoreRoundTask.IsCompleted);
 
-                    if (newGetScoreRoundTask.Result.Exists)
+                    if (newScoreRoundValue == 3)
                     {
-                        int currentScoreRound = int.Parse(getGameRoundTask.Result.Value.ToString());
-                        if (currentScoreRound == 3)
-                        {
-                            currentGameState = (int)Gamestate.gambit;
-                            yield break;
-                        }
+                        currentGameState = (int)Gamestate.gambit;
+                        //SetScoreRound to 0 again after the gambit is done
+                        yield break;
                     }
                 }
             }
 
-            if (currentPlayerId == DataSaver.instance.userId)
+            if (currentPlayerId == DataSaver.instance.userId && !gameOver) // may add the &&(gambit or not)
             {
                 yield return StartCoroutine(UpdateFirebase());
                 var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
@@ -887,6 +882,10 @@ public class GameController : MonoBehaviour
             }
             Debug.Log("Score updated for player: " + winningPlayerId);
             yield return StartCoroutine(DisplayScore());
+            if (updatedScore >= 52) //Player wins 
+            {
+                yield return StartCoroutine(GameOver());
+            }
             yield break;
         }
         else if (winningPlayerIds.Count > 1)
@@ -980,6 +979,10 @@ public class GameController : MonoBehaviour
                 }
                 Debug.Log("Score updated for player: " + winningPlayerId);
                 yield return StartCoroutine(DisplayScore());
+                if (updatedScore >= 52) //Player wins 
+                {
+                    yield return StartCoroutine(GameOver());
+                }
             }
         }
     }
@@ -1033,6 +1036,10 @@ public class GameController : MonoBehaviour
             playerScores[currentPlayer].text = $"{username}: {score}";
             currentPlayer++;
         }
+    }
+    IEnumerator GameOver()
+    {
+        yield break;
     }
 
     #endregion
