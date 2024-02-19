@@ -300,12 +300,12 @@ public class GameController : MonoBehaviour
     IEnumerator EndPlayerTurn()
     {
         string currentPlayerId = playerIds[playerIndex];
-        Debug.Log("EndTurn" + currentPlayerId.ToString());
+
         if (currentPlayerId == DataSaver.instance.userId)
         {
             endTurnButton.SetActive(false);
             DealCards(deck);
-            StartCoroutine(DisplayCardsDrawn());
+            yield return StartCoroutine(DisplayCardsDrawn()); //Maybe dont need yield return
             turnEndedEarly = false;
             StartCoroutine(CountAndSetValueOfHand(hand));
             DatabaseReference gameDataRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
@@ -352,8 +352,8 @@ public class GameController : MonoBehaviour
                 yield return StartCoroutine(UpdateFirebase());
                 var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
                 yield return new WaitUntil(() => removeUserTurn.IsCompleted);
+                PassTurnToNextPlayer();
             }
-            PassTurnToNextPlayer();
             roundIsActive = false;
         }
     }
@@ -395,7 +395,7 @@ public class GameController : MonoBehaviour
         deck = shuffledDeck;
 
         DealCards(deck);
-        StartCoroutine(DisplayCardsDrawn());
+        yield return StartCoroutine(DisplayCardsDrawn()); //Mabye remove yield return
         yield return null;
     }
 
@@ -550,7 +550,7 @@ public class GameController : MonoBehaviour
                 }
             }
         }
-        yield return StartCoroutine(DisplayScore());
+        StartCoroutine(DisplayScore()); //Add yield return or maybe put this call somewhere else
     }
     #endregion
 
