@@ -48,6 +48,10 @@ public class AddFriendManager : MonoBehaviour
             {
                 warningText.text = "User is already your friend.";
             }
+            else if (receiverUsername == DataSaver.instance.dts.userName)
+            {
+                warningText.text = "User is busy trying to add themselves";
+            }
             else
             {
                 var friendRequestSnapshot = databaseReference.Child("friendRequests").Child(receiverId).Child(senderId).GetValueAsync();

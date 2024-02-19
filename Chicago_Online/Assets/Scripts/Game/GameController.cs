@@ -11,6 +11,7 @@ using Firebase.Extensions;
 using static CardScriptableObject;
 using System;
 using System.Text.RegularExpressions;
+using UnityEngine.SceneManagement;
 
 public class GameController : MonoBehaviour
 {
@@ -1039,7 +1040,11 @@ public class GameController : MonoBehaviour
     }
     IEnumerator GameOver()
     {
-        yield break;
+        gameOver = true;
+        yield return new WaitForSeconds(4);
+        //Remove server from database
+        yield return new WaitForSeconds(1);
+        SceneManager.LoadScene("ServerScene");
     }
 
     #endregion
