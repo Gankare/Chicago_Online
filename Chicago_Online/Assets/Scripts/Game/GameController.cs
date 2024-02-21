@@ -225,7 +225,7 @@ public class GameController : MonoBehaviour
             #region GiveCards
             if (currentPlayerId == DataSaver.instance.userId)
             {
-                StartCoroutine(ShuffleAndDealOwnCards(deck));
+                yield return StartCoroutine(ShuffleAndDealOwnCards(deck));
                 endTurnButton.SetActive(true);
             }
         
@@ -246,11 +246,8 @@ public class GameController : MonoBehaviour
                         // Increment the current value
                         int newValue = int.Parse(currentValue) + 1;
 
-                        // Convert the new value to a string
-                        string newValueAsString = newValue.ToString();
-
                         // Set the new string value back to the database
-                        var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(newValueAsString);
+                        var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(newValue);
                         yield return new WaitUntil(() => setGameRound.IsCompleted);
                     }
                     else
@@ -327,9 +324,8 @@ public class GameController : MonoBehaviour
 
                     string currentScoreRoundValue = getLastScoreRound.Result.Value.ToString();
                     int newScoreRoundValue = int.Parse(currentScoreRoundValue) + 1;
-                    string newScoreRoundString = newScoreRoundValue.ToString();
 
-                    var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(newScoreRoundString);
+                    var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(newScoreRoundValue);
                     yield return new WaitUntil(() => setScoreRound.IsCompleted);
                     yield return StartCoroutine(UpdateFirebase());
                     yield return StartCoroutine(UpdateScore());
