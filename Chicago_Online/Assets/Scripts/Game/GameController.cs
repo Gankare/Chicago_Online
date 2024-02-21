@@ -21,6 +21,7 @@ public class GameController : MonoBehaviour
         distributionOfCards,
         gambit
     }
+    //public TMP_Text chaInformationtText;
     public int currentGameState;
     public List<CardScriptableObject> allCards = new();
     public List<CardScriptableObject> deck = new();
@@ -35,6 +36,8 @@ public class GameController : MonoBehaviour
     public Transform handSlot;
     public TMP_Text turnTimerText;
     public GameObject endTurnButton;
+    public GameObject winScreen;
+    public GameObject loseScreen;
     private float turnTimer = 0f; 
     private float turnDuration = 20f; 
     private string serverId;
@@ -60,19 +63,26 @@ public class GameController : MonoBehaviour
         StartCoroutine(UpdateFirebase());
     }
 
-    private void ListenForPlayerTurn()
+    private void OnDisable()
     {
-        DatabaseReference isTurnRef = DataSaver.instance.dbRef
-            .Child("servers")
-            .Child(serverId)
-            .Child("players")
-            .Child(DataSaver.instance.userId)
-            .Child("userGameData")
-            .Child("isTurn");
-
-        isTurnRef.ValueChanged += PlayerTurnValueChanged;
+        RemoveListeners();
     }
 
+    private void OnDestroy()
+    {
+        RemoveListeners();
+    }
+    private void ListenForPlayerTurn()
+    {
+        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("isTurn").ValueChanged += PlayerTurnValueChanged;
+        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").ValueChanged += CheckGameOverStatus;
+    }
+    void RemoveListeners()
+    {
+        turnTimerRef.ValueChanged -= TurnTimerValueChanged;
+        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("isTurn").ValueChanged -= PlayerTurnValueChanged;
+        DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").ValueChanged -= CheckGameOverStatus;
+    }
     private void PlayerTurnValueChanged(object sender, ValueChangedEventArgs args)
     {
         if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
@@ -84,10 +94,21 @@ public class GameController : MonoBehaviour
             }
         }
     }
+    private void CheckGameOverStatus(object sender, ValueChangedEventArgs args)
+    {
+        if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
+        {
+            bool isGameOver = (bool)args.Snapshot.Value;
+            if (isGameOver)
+            {
+                Debug.Log("Starting gameover");
+                StartCoroutine(GameOver());
+            }
+        }
+    }
     private void ListenForTurnTimerChanges()
     {
         turnTimerRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("turnTimer");
-
         turnTimerRef.ValueChanged += TurnTimerValueChanged;
     }
     private void TurnTimerValueChanged(object sender, ValueChangedEventArgs args)
@@ -121,31 +142,10 @@ public class GameController : MonoBehaviour
         var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(0);
         var setScoreRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(0);
         var setServerTimer = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("turnTimer").SetValueAsync(0);
+        var setGameOverFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").SetValueAsync(false);
         yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted && setGameRound.IsCompleted && setScoreRound.IsCompleted && setServerTimer.IsCompleted);
     }
-   
-    private void OnDisable()
-    {
-        RemoveListeners();
-    }
-
-    private void OnDestroy()
-    {
-        RemoveListeners();
-    }
-    void RemoveListeners()
-    {
-        turnTimerRef.ValueChanged -= TurnTimerValueChanged;
-        DatabaseReference isTurnRef = DataSaver.instance.dbRef
-            .Child("servers")
-            .Child(serverId)
-            .Child("players")
-            .Child(DataSaver.instance.userId)
-            .Child("userGameData")
-            .Child("isTurn");
-
-        isTurnRef.ValueChanged -= PlayerTurnValueChanged;
-    }
+  
     private IEnumerator InitializeGameData()
     {
         var getPlayerIdsTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").GetValueAsync();
@@ -881,11 +881,12 @@ public class GameController : MonoBehaviour
                 Debug.LogError("Error updating player score in Firebase.");
                 yield break;
             }
-            Debug.Log("Score updated for player: " + winningPlayerId);
+            //Addscore text here
             yield return StartCoroutine(DisplayScore());
             if (updatedScore >= 52) //Player wins 
             {
-                yield return StartCoroutine(GameOver());
+                var setGameOverTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").SetValueAsync(true);
+                yield return new WaitUntil(() => setGameOverTrue.IsCompleted);
             }
             yield break;
         }
@@ -978,11 +979,12 @@ public class GameController : MonoBehaviour
                     Debug.LogError("Error updating player score in Firebase.");
                     yield break;
                 }
-                Debug.Log("Score updated for player: " + winningPlayerId);
+                //Add score text here
                 yield return StartCoroutine(DisplayScore());
                 if (updatedScore >= 52) //Player wins 
                 {
-                    yield return StartCoroutine(GameOver());
+                    var setGameOverTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").SetValueAsync(true);
+                    yield return new WaitUntil(() => setGameOverTrue.IsCompleted);
                 }
             }
         }
@@ -1041,9 +1043,37 @@ public class GameController : MonoBehaviour
     IEnumerator GameOver()
     {
         gameOver = true;
-        yield return new WaitForSeconds(4);
-        //Remove server from database
-        yield return new WaitForSeconds(1);
+        var scoreString = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("score").GetValueAsync();
+        yield return new WaitUntil(() => scoreString.IsCompleted);
+
+        int userScore = int.Parse(scoreString.Result.Value.ToString());
+        if (userScore >= 52) //Winner
+        {
+            winScreen.SetActive(true);
+            var getUserWins = DataSaver.instance.dbRef.Child("users").Child(DataSaver.instance.userId).Child("matchesWon").GetValueAsync();
+            yield return new WaitUntil(() => getUserWins.IsCompleted);
+
+            int userWins = int.Parse(getUserWins.Result.Value.ToString());
+
+            int newUserWins = userWins + 1;
+
+            var addToUserWins = DataSaver.instance.dbRef.Child("users").Child(DataSaver.instance.userId).Child("matchesWon").SetValueAsync(newUserWins);
+            yield return new WaitUntil(() => addToUserWins.IsCompleted);
+        }
+        else //Loser
+        {
+            loseScreen.SetActive(true);
+        }
+        yield return new WaitForSeconds(2);
+        var deletingServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).RemoveValueAsync();
+        yield return new WaitUntil(() => deletingServer.IsCompleted);
+        if (deletingServer.Exception != null)
+        {
+            //Probably because another player has deleted the server already, this is called by every player in the server
+            Debug.LogError("Error deleting server node: " + deletingServer.Exception);
+        }
+            yield return new WaitForSeconds(1);
+        serverId = "";
         SceneManager.LoadScene("ServerScene");
     }
 

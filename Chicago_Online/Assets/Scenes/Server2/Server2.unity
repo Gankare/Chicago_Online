@@ -412,6 +412,7 @@ MonoBehaviour:
   selectedCardObjects: []
   handSlot: {fileID: 350428753}
   turnTimerText: {fileID: 1146507211}
+  scoreTextObject: {fileID: 6317938948529353787, guid: f0e8a834ff392914084601c215d7b3f7, type: 3}
   endTurnButton: {fileID: 452210246}
 --- !u!114 &245281713
 MonoBehaviour:
