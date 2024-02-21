@@ -329,7 +329,7 @@ public class GameController : MonoBehaviour
                     yield return new WaitUntil(() => setScoreRound.IsCompleted);
                     yield return StartCoroutine(UpdateFirebase());
                     yield return StartCoroutine(UpdateScore());
-
+                    
                     if (newScoreRoundValue == 3)
                     {
                         currentGameState = (int)Gamestate.gambit;
@@ -1046,6 +1046,7 @@ public class GameController : MonoBehaviour
         if (userScore >= 52) //Winner
         {
             winScreen.SetActive(true);
+            //Adding a win to winners profile
             var getUserWins = DataSaver.instance.dbRef.Child("users").Child(DataSaver.instance.userId).Child("matchesWon").GetValueAsync();
             yield return new WaitUntil(() => getUserWins.IsCompleted);
 
@@ -1055,20 +1056,21 @@ public class GameController : MonoBehaviour
 
             var addToUserWins = DataSaver.instance.dbRef.Child("users").Child(DataSaver.instance.userId).Child("matchesWon").SetValueAsync(newUserWins);
             yield return new WaitUntil(() => addToUserWins.IsCompleted);
+
+            //Deleting server
+            var deletingServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).RemoveValueAsync();
+            yield return new WaitUntil(() => deletingServer.IsCompleted);
+            if (deletingServer.Exception != null)
+            {
+                Debug.LogError("Error deleting server node: " + deletingServer.Exception);
+            }
+            yield return new WaitForSeconds(4.5f);
         }
         else //Loser
         {
             loseScreen.SetActive(true);
+            yield return new WaitForSeconds(5);
         }
-        yield return new WaitForSeconds(2);
-        var deletingServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).RemoveValueAsync();
-        yield return new WaitUntil(() => deletingServer.IsCompleted);
-        if (deletingServer.Exception != null)
-        {
-            //Probably because another player has deleted the server already, this is called by every player in the server
-            Debug.LogError("Error deleting server node: " + deletingServer.Exception);
-        }
-            yield return new WaitForSeconds(1);
         serverId = "";
         SceneManager.LoadScene("ServerScene");
     }
