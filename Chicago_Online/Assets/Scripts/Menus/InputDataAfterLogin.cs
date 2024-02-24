@@ -26,8 +26,8 @@ public class InputDataAfterLogin : MonoBehaviour
     public GameObject friendObject;
     public Transform friendList;
 
-    private List<GameObject> instantiatedFriendRequests = new List<GameObject>();
-    private List<GameObject> instantiatedFriends = new List<GameObject>();
+    private List<GameObject> instantiatedFriendRequests = new();
+    private List<GameObject> instantiatedFriends = new();
 
     private void Start()
     {
