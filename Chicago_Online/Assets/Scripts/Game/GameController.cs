@@ -240,10 +240,9 @@ public class GameController : MonoBehaviour
 
         if (currentGameState == (int)Gamestate.distributionOfCards) 
         {
-            #region GiveCards
             yield return StartCoroutine(ShuffleAndDealOwnCards(deck));
-            UpdateCardButtons();
-            yield return new WaitForSeconds(2.5f);
+            //UpdateCardButtons();
+            yield return new WaitForSeconds(1);
             endTurnButton.SetActive(true);
         
             var getCurrentGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").GetValueAsync();
@@ -261,11 +260,9 @@ public class GameController : MonoBehaviour
             {
                 Debug.LogError("Can't get currentGameRound");
             }
-            #endregion
         }
         else if (currentGameState == (int)Gamestate.gambit)
         {
-            #region PlayCards
             //Display game cards from other players
             yield return StartCoroutine(DisplayGambitCards());
             UpdateCardButtons();
@@ -284,7 +281,6 @@ public class GameController : MonoBehaviour
             {
                 Debug.LogError("Can't get currentGambitRound");
             }
-            #endregion
         }
         StartCoroutine(PlayerTurnTimer());
     }
@@ -330,6 +326,7 @@ public class GameController : MonoBehaviour
                     List<GameObject> cardsOfSuitInHand = new();
                     foreach (GameObject card in userHandObjects)
                     {
+                        //if (card.GetComponent<CardInfo>().cardId.Contains(gambitSuit.ToString()))
                         if (card.gameObject.GetComponent<CardInfo>().cardId.Contains(gambitSuit))
                         {
                             amountOfSuitInHand++;
@@ -437,6 +434,7 @@ public class GameController : MonoBehaviour
                         {
                             if (((int)gambitCard.Value.cardNumber) > higestCard)
                             {
+                                higestCard = (int)gambitCard.Value.cardNumber;
                                 winnerId = gambitCard.Key;
                             }
                         }
@@ -470,11 +468,11 @@ public class GameController : MonoBehaviour
                             Destroy(cardInfo.gameObject);
                         }  
                         hand.Clear();
-                        deck.Clear();
                         discardPile.Clear();
                         userHandObjects.Clear();
                         gambitCardsInPlay.Clear();
                         selectedCardObjects.Clear();
+                        deck = allCards;
                     }
                     gambitCard = null; //Clear all players gambitcards in the database
                     yield return StartCoroutine(UpdateFirebase());
@@ -781,6 +779,13 @@ public class GameController : MonoBehaviour
                 var setGabitSuitFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync("");
                 yield return new WaitUntil(() => setGabitSuitFalse.IsCompleted);
                 gambitSuit = "";
+                for (int i = 0; i < gambitSlots.Count; i++)
+                {
+                    for (int childCard = 0; childCard < gambitSlots[i].childCount; childCard++)
+                    {
+                        Destroy(gambitSlots[i].GetChild(childCard).gameObject);
+                    }
+                }
             }
             else
             {
@@ -843,6 +848,7 @@ public class GameController : MonoBehaviour
 
                 if (cardToRemove != null)
                 {
+                    userHandObjects.Remove(selectedCardObject);
                     hand.Remove(cardToRemove);
                     discardPile.Add(cardToRemove);
                     Destroy(selectedCardObject);
@@ -872,12 +878,19 @@ public class GameController : MonoBehaviour
                     {
                         hand.Remove(cardToRemove);
                         userHandObjects.Remove(selectedCardObject);
+                        if (firstGambitCard)
+                        {
+                            var setGabitSuitFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync(cardToRemove.cardSuit.ToString());
+                            gambitSuit = cardToRemove.cardSuit.ToString();
+                        }
                         if (gambitCard != null)
                         {
                             discardPile.Add(gambitCard);
+                            gambitCardsInPlay.Remove(DataSaver.instance.userId);
+                            //Destroy gameobject here ?
                         }
                         gambitCard = cardToRemove;
-                        gambitCardsInPlay.Add(DataSaver.instance.userId, gambitCard); //¤¤
+                        gambitCardsInPlay.Add(DataSaver.instance.userId, gambitCard);
                         Destroy(selectedCardObject);
                     }
                     else
@@ -1212,7 +1225,11 @@ public class GameController : MonoBehaviour
                 winningPlayerIds.Add(kvp.Key);
             }
         }
-
+          if (highestScore == 0)
+        {
+            Debug.Log("No one got points");
+            yield break;
+        }
         // If there's only one winning player, update their score directly
         if (winningPlayerIds.Count == 1)
         {
@@ -1400,6 +1417,10 @@ public class GameController : MonoBehaviour
 
             string username = getUsernameTask.Result.Value.ToString();
             playerScores[currentPlayer].text = $"{username}: {score}";
+            if (playerId == DataSaver.instance.userId)
+            {
+                playerScores[currentPlayer].color = Color.blue;
+            }
             currentPlayer++;
         }
     }
