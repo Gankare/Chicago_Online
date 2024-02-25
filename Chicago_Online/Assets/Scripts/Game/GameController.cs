@@ -12,6 +12,8 @@ using static CardScriptableObject;
 using System;
 using System.Text.RegularExpressions;
 using UnityEngine.SceneManagement;
+using AYellowpaper.SerializedCollections;
+
 
 public class GameController : MonoBehaviour
 {
@@ -28,8 +30,8 @@ public class GameController : MonoBehaviour
     public List<CardScriptableObject> discardPile = new();
     public List<CardScriptableObject> hand = new();
     public List<GameObject> userHandObjects = new();
-    public Dictionary<string,CardScriptableObject> gambitCardsInPlay = new();
-    public Dictionary<string, CardScriptableObject> gambitCardsToDisplay = new();
+    public SerializedDictionary<string,CardScriptableObject> gambitCardsInPlay = new();
+    public SerializedDictionary<CardScriptableObject, string> gambitCardsToDisplay = new();
     public CardScriptableObject gambitCard;
     public List<string> firebaseDiscardPile = new();
     public List<string> firebaseDeck = new();
@@ -84,9 +86,12 @@ public class GameController : MonoBehaviour
     }
     private void ListenForGambitCards()
     {
-        foreach(string player in playerIds)
+        foreach (string player in playerIds)
         {
-            DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(player).Child("userGameData").Child("gambitCard").ValueChanged += HandleGambitCardChanged;
+            DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(player).Child("userGameData").Child("gambitCard").ValueChanged += (sender, args) =>
+            {
+                HandleGambitCardChanged(player, args);
+            };
         }
     }
     private void ListenForPlayerTurn()
@@ -101,37 +106,36 @@ public class GameController : MonoBehaviour
         DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").ValueChanged -= CheckGameOverStatus;
         foreach (string player in playerIds)
         {
-            DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(player).Child("userGameData").Child("gambitCard").ValueChanged -= HandleGambitCardChanged;
+            DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(player).Child("userGameData").Child("gambitCard").ValueChanged -= (sender, args) =>
+            {
+                HandleGambitCardChanged(player, args);
+            };
         }
     }
-    void HandleGambitCardChanged(object sender, ValueChangedEventArgs args)
+    void HandleGambitCardChanged(string playerId, ValueChangedEventArgs args)
     {
         if (currentGameState != (int)Gamestate.gambit)
             return;
 
-        var playerId = args.Snapshot.Key;
         var gambitCardId = args.Snapshot.Value.ToString();
 
         if (!string.IsNullOrEmpty(gambitCardId))
         {
             CardScriptableObject card = GetCardFromId(gambitCardId);
-            gambitCardsToDisplay.Add(playerId, card);
+            gambitCardsToDisplay.Add(card, playerId);
             if (gambitCardsToDisplay.Count > 0)
                 StartCoroutine(DisplayGambitCards());
             else
                 Debug.Log("no gambitcards to display");
         }
-        // Delete all gambitcards in scene
-        /*foreach (var slot in gambitSlots)
-        {
-            for (int childCard = 0; childCard < slot.childCount; childCard++)
-            {
-                Destroy(slot.GetChild(childCard).gameObject);
-            }
-        }*/
-        // Instantiate new gambit cards for all players
     }
-
+    /*foreach (var slot in gambitSlots)
+    {
+        for (int childCard = 0; childCard < slot.childCount; childCard++)
+        {
+            Destroy(slot.GetChild(childCard).gameObject);
+        }
+    }*/
     private void PlayerTurnValueChanged(object sender, ValueChangedEventArgs args)
     {
         if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
@@ -666,13 +670,13 @@ public class GameController : MonoBehaviour
             for (int i = 0; i < playerIdsForSlot.Count; i++)
             {
                 string playerId = playerIdsForSlot[i];
-                if (!gambitCardsToDisplay.ContainsKey(playerId))
+                if (!gambitCardsToDisplay.ContainsValue(playerId))
                 {
                     Debug.LogWarning("No gambit card found for player: " + playerId);
                     continue;
                 }
 
-                CardScriptableObject gambitCard = gambitCardsToDisplay[playerId];
+                CardScriptableObject gambitCard = gambitCardsToDisplay.ContainsKey();
 
                 // Check if the gambit card is already displayed
                 bool cardAlreadyDisplayed = false;
