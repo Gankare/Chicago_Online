@@ -241,7 +241,6 @@ public class GameController : MonoBehaviour
         if (currentGameState == (int)Gamestate.distributionOfCards) 
         {
             yield return StartCoroutine(ShuffleAndDealOwnCards(deck));
-            //UpdateCardButtons();
             yield return new WaitForSeconds(1);
             endTurnButton.SetActive(true);
         
@@ -466,7 +465,7 @@ public class GameController : MonoBehaviour
                         foreach (CardInfo cardInfo in cardInfos)
                         {
                             Destroy(cardInfo.gameObject);
-                        }  
+                        }
                         hand.Clear();
                         discardPile.Clear();
                         userHandObjects.Clear();
@@ -619,7 +618,7 @@ public class GameController : MonoBehaviour
     }
     IEnumerator DisplayGambitCards()
     {
-        if (gambitCardsInPlay.Count >  0)
+        if (gambitCardsInPlay.Count > 0)
         {
             for (int i = 0; i < playerIdsForSlot.Count; i++)
             {
@@ -633,16 +632,30 @@ public class GameController : MonoBehaviour
 
                 CardScriptableObject gambitCard = gambitCardsInPlay[playerId];
 
-                Transform slot = gambitSlots[i];
-                //¤¤Backside of image if not in suit, kort ner 
-                var currentCard = Instantiate(card, slot);
-                if (gambitCard.cardId.Contains(gambitSuit) || gambitSuit == string.Empty)
-                    currentCard.GetComponent<Image>().sprite = gambitCard.cardSprite;
-                else
-                    currentCard.GetComponent<Image>().sprite = backOfCardSprite;
-                currentCard.GetComponent<CardInfo>().power = gambitCard.power;
-                currentCard.GetComponent<CardInfo>().cardId = gambitCard.cardId;
-                currentCard.GetComponent<Button>().enabled = false;
+                // Check if the gambit card is already displayed
+                bool cardAlreadyDisplayed = false;
+                foreach (Transform cardTransform in gambitSlots[i])
+                {
+                    CardInfo cardInfo = cardTransform.GetComponent<CardInfo>();
+                    if (cardInfo != null && cardInfo.cardId == gambitCard.cardId)
+                    {
+                        cardAlreadyDisplayed = true;
+                        break;
+                    }
+                }
+
+                // If the card is not already displayed, instantiate it
+                if (!cardAlreadyDisplayed)
+                {
+                    var currentCard = Instantiate(card, gambitSlots[i]);
+                    if (gambitCard.cardId.Contains(gambitSuit) || gambitSuit == string.Empty)
+                        currentCard.GetComponent<Image>().sprite = gambitCard.cardSprite;
+                    else
+                        currentCard.GetComponent<Image>().sprite = backOfCardSprite;
+                    currentCard.GetComponent<CardInfo>().power = gambitCard.power;
+                    currentCard.GetComponent<CardInfo>().cardId = gambitCard.cardId;
+                    currentCard.GetComponent<Button>().enabled = false;
+                }
             }
         }
         yield return null;
@@ -779,13 +792,6 @@ public class GameController : MonoBehaviour
                 var setGabitSuitFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync("");
                 yield return new WaitUntil(() => setGabitSuitFalse.IsCompleted);
                 gambitSuit = "";
-                for (int i = 0; i < gambitSlots.Count; i++)
-                {
-                    for (int childCard = 0; childCard < gambitSlots[i].childCount; childCard++)
-                    {
-                        Destroy(gambitSlots[i].GetChild(childCard).gameObject);
-                    }
-                }
             }
             else
             {
