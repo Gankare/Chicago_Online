@@ -532,7 +532,6 @@ public class GameController : MonoBehaviour
         if (!gameOver)
         {
             yield return StartCoroutine(UpdateFirebase());
-            yield return new WaitForSeconds(1);
             var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
             yield return new WaitUntil(() => removeUserTurn.IsCompleted);
             PassTurnToNextPlayer(); 
@@ -736,6 +735,7 @@ public class GameController : MonoBehaviour
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
         var setUserGambitCard = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("gambitCard").SetValueAsync(firebaseGambitCard);
         yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted && setUserGambitCard.IsCompleted);
+        yield return new WaitForSeconds(1);
 
     } 
     private IEnumerator UpdateLocalDataFromFirebase()
