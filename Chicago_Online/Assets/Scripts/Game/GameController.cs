@@ -278,8 +278,8 @@ public class GameController : MonoBehaviour
             yield break;
         }
         roundIsActive = true;
-        Debug.Log("Before updating local");
         yield return StartCoroutine(UpdateLocalDataFromFirebase());
+        Debug.Log("after updating local");
         yield return new WaitForSeconds(1);
 
         playerIndex = playerIds.IndexOf(DataSaver.instance.userId);
@@ -507,25 +507,20 @@ public class GameController : MonoBehaviour
                         {
                             Destroy(cardInfo.gameObject);
                         }
-                        hand.Clear();
                         discardPile.Clear();
-                        userHandObjects.Clear();
-                        gambitCardsInPlay.Clear();
-                        gambitCardsToDisplay.Clear();
-                        gambitCardsToDisplayPlayerIds.Clear();
-                        selectedCardObjects.Clear();
                         deck = allCards;
                         var setGambitFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambit").SetValueAsync(false);
                         var setGambitSuit = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync("");
                         yield return new WaitUntil(() => setGambitFalse.IsCompleted && setGambitSuit.IsCompleted);
                         Debug.Log("Gambit is over");
                     }
-                    gambitCard = null; //Clear all players gambitcards in the database
                     yield return StartCoroutine(UpdateFirebase());
+                    //Clear all players gambitcards in the database
                     foreach (string playerid in playerIds)
                     {
                         DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(playerid).Child("userGameData").Child("gambitCard").SetValueAsync("");
                     }
+                    yield return new WaitForSeconds(1);
                     var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
                     yield return new WaitUntil(() => removeUserTurn.IsCompleted);
                     PassTurnToGambitWinner(winnerId);
@@ -537,6 +532,7 @@ public class GameController : MonoBehaviour
         if (!gameOver)
         {
             yield return StartCoroutine(UpdateFirebase());
+            yield return new WaitForSeconds(1);
             var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
             yield return new WaitUntil(() => removeUserTurn.IsCompleted);
             PassTurnToNextPlayer(); 
@@ -710,11 +706,11 @@ public class GameController : MonoBehaviour
                         }
                     }
                 }
-                #endregion
             }
         }
         yield return null;
     }
+                #endregion
 
     #region UpdateFireBaseAndLocalCards
     IEnumerator UpdateFirebase()
@@ -735,7 +731,6 @@ public class GameController : MonoBehaviour
             firebaseGambitCard = gambitCard.cardId;
         else    
             firebaseGambitCard = "";
-        yield return new WaitForSeconds(0.5f); //So all lists have time to update 
         var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(firebaseHand);
         var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
@@ -751,10 +746,10 @@ public class GameController : MonoBehaviour
         gambitCardsInPlay.Clear();
         userHandObjects.Clear();
 
-        var getGambitBool = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambit").GetValueAsync();
-        var getServerDeckTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").GetValueAsync();
-        var getServerDiscardPileTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").GetValueAsync();
         var getUserHandTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").GetValueAsync();
+        var getServerDiscardPileTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").GetValueAsync();
+        var getServerDeckTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").GetValueAsync();
+        var getGambitBool = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambit").GetValueAsync();
         yield return new WaitUntil(() =>  getGambitBool.IsCompleted && getServerDeckTask.IsCompleted && getServerDiscardPileTask.IsCompleted && getUserHandTask.IsCompleted);
 
         if (getGambitBool.Exception != null || getServerDeckTask.Exception != null || getServerDiscardPileTask.Exception != null || getUserHandTask.Exception != null)
@@ -853,12 +848,10 @@ public class GameController : MonoBehaviour
                 yield return new WaitUntil(() => getGabitSuit.IsCompleted);
                 firstGambitCard = false;
                 gambitSuit = getGabitSuit.Result.Value.ToString();
-                //yield return StartCoroutine(DisplayGambitCards());
             }
         }
         else
         {
-            currentGameState = (int)Gamestate.distributionOfCards;
             gambitCardsInPlay.Clear();
             gambitCardsToDisplay.Clear();
             gambitCardsToDisplayPlayerIds.Clear();
@@ -873,6 +866,7 @@ public class GameController : MonoBehaviour
                 }
             }
             Debug.Log("Not Gabit round");
+            currentGameState = (int)Gamestate.distributionOfCards;
         }
         yield return StartCoroutine(DisplayScore()); //May remove yield return or move this call
     }
