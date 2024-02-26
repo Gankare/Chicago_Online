@@ -117,21 +117,7 @@ public class GameController : MonoBehaviour
     async void HandleGambitCardChanged(string playerId, ValueChangedEventArgs args)
     {
         if (currentGameState != (int)Gamestate.gambit)
-        {
-            foreach (var slot in gambitSlots)
-            {
-                if(slot.childCount > 0)
-                {
-                    for (int childCard = 0; childCard < slot.childCount; childCard++)
-                    {
-                        Destroy(slot.GetChild(childCard).gameObject);
-                    }
-                }
-            }
-            gambitCardsToDisplay.Clear();
-            gambitCardsToDisplayPlayerIds.Clear();
             return;
-        }
 
         var gambitCardId = args.Snapshot.Value.ToString();
 
@@ -159,9 +145,13 @@ public class GameController : MonoBehaviour
             bool isTurn = (bool)args.Snapshot.Value;
             if (isTurn)
             {
-                StartCoroutine(StartNextRound());
+                Invoke(nameof(StartNextRoundAfterAWhile), 1);
             }
         }
+    }
+    private void StartNextRoundAfterAWhile()
+    {
+        StartCoroutine(StartNextRound());
     }
     private void CheckGameOverStatus(object sender, ValueChangedEventArgs args)
     {
@@ -514,21 +504,11 @@ public class GameController : MonoBehaviour
                             yield return new WaitUntil(() => setGameOverTrue.IsCompleted);
                         }
                         //deleting all cards in the scene and clearing all lists before updating to firebase
-                        discardPile.Clear();
-                        deck.Clear();
-                        deck.AddRange(allCards);
+                        yield return StartCoroutine(UpdateDeckAsync());
+
                         var setGambitFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambit").SetValueAsync(false);
                         var setGambitSuit = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync("");
                         yield return new WaitUntil(() => setGambitFalse.IsCompleted && setGambitSuit.IsCompleted);
-                        Debug.Log("Gambit is over");
-                        yield return StartCoroutine(UpdateFirebase());
-                        Debug.Log("Gambit firebase has loaded succesfully");
-                        var removeTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
-                        yield return new WaitUntil(() => removeTurn.IsCompleted);
-                        if (!gameOver)
-                            PassTurnToGambitWinner(winnerId);
-                        roundIsActive = false;
-                        yield break;
                     }
                     yield return StartCoroutine(UpdateFirebase());
                     //Clear all players gambitcards in the database
@@ -556,7 +536,16 @@ public class GameController : MonoBehaviour
             yield break;
         roundIsActive = false;
     }
-
+    IEnumerator UpdateDeckAsync()
+    {
+        discardPile.Clear();
+        deck.Clear();
+        foreach (var card in allCards)
+        {
+            deck.Add(card);
+            yield return null; 
+        }
+    }
     IEnumerator IsMyTurnCoroutine(System.Action<bool> callback)
     {
         var isTurnSnapshotTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("isTurn").GetValueAsync();
@@ -781,7 +770,6 @@ public class GameController : MonoBehaviour
         deck.Clear();
         hand.Clear();
         discardPile.Clear();
-        gambitCardsInPlay.Clear();
         userHandObjects.Clear();
 
         var getUserHandTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").GetValueAsync();
@@ -845,6 +833,7 @@ public class GameController : MonoBehaviour
 
         if ((bool)getGambitBool.Result.Value) //If gambit is taking place, Get all cards in play to a list for displaying
         {
+            gambitCardsInPlay.Clear();
             foreach (string playerId in playerIds)
             {
                 var gambitCardTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(playerId).Child("userGameData").Child("gambitCard").GetValueAsync();
@@ -892,8 +881,11 @@ public class GameController : MonoBehaviour
         {
             gambitCard = null;
             gambitCardsInPlay.Clear();
-            gambitCardsToDisplay.Clear();
-            gambitCardsToDisplayPlayerIds.Clear();
+            if(gambitCardsToDisplay != null) 
+                gambitCardsToDisplay.Clear();
+            if(gambitCardsToDisplayPlayerIds != null)
+                gambitCardsToDisplayPlayerIds.Clear();
+
             for (int i = 0; i < gambitSlots.Count; i++)
             {
                 if (gambitSlots[i].childCount > 0)
