@@ -230,7 +230,6 @@ public class GameController : MonoBehaviour
                     var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(0);
                     yield return new WaitUntil(() => setPlayerHandNull.IsCompleted && setPlayerGambitCardNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted && setPlayerScore.IsCompleted);
 
-                yield return new WaitForSeconds(1);
                 string currentPlayerId = playerIds[playerIndex];
                 if (currentPlayerId == DataSaver.instance.userId)
                 {
@@ -281,7 +280,6 @@ public class GameController : MonoBehaviour
         yield return StartCoroutine(UpdateLocalDataFromFirebase());
         yield return StartCoroutine(DisplayScore());
         Debug.Log("after updating local");
-        yield return new WaitForSeconds(1);
 
         playerIndex = playerIds.IndexOf(DataSaver.instance.userId);
         string currentPlayerId = playerIds[playerIndex];
@@ -289,7 +287,6 @@ public class GameController : MonoBehaviour
         if (currentGameState == (int)Gamestate.distributionOfCards) 
         {
             yield return StartCoroutine(ShuffleAndDealOwnCards(deck));
-            yield return new WaitForSeconds(2);
             endTurnButton.SetActive(true);
         
             var getCurrentGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").GetValueAsync();
@@ -311,7 +308,6 @@ public class GameController : MonoBehaviour
         else if (currentGameState == (int)Gamestate.gambit)
         {
             UpdateCardButtons();
-            yield return new WaitForSeconds(1);
             endTurnButton.SetActive(true);
 
             var getCurrentGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGambitRound").GetValueAsync();
@@ -455,7 +451,6 @@ public class GameController : MonoBehaviour
                 card.GetComponent<Button>().enabled = true;
                 card.GetComponent<Image>().color = Color.white;
             }
-            yield return new WaitForSeconds(1);
             DatabaseReference gameDataRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
             var getGambitRoundTask = gameDataRef.Child("currentGambitRound").GetValueAsync();
             yield return new WaitUntil(() => getGambitRoundTask.IsCompleted);
@@ -655,9 +650,10 @@ public class GameController : MonoBehaviour
                 currentCard.GetComponent<CardInfo>().power = slot.power;
                 currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
                 userHandObjects.Add(currentCard);
-                yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(0.2f);
             }
         }
+        yield return null;
     }
 
     IEnumerator DisplayGambitCards()
@@ -737,7 +733,6 @@ public class GameController : MonoBehaviour
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
         var setUserGambitCard = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("gambitCard").SetValueAsync(firebaseGambitCard);
         yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted && setUserGambitCard.IsCompleted);
-        yield return new WaitForSeconds(0.5f);
     } 
 
     private IEnumerator UpdateLocalDataFromFirebase()
