@@ -113,7 +113,8 @@ public class GameController : MonoBehaviour
             };
         }
     }
-    void HandleGambitCardChanged(string playerId, ValueChangedEventArgs args)
+
+    async void HandleGambitCardChanged(string playerId, ValueChangedEventArgs args)
     {
         if (currentGameState != (int)Gamestate.gambit)
             return;
@@ -126,7 +127,13 @@ public class GameController : MonoBehaviour
             gambitCardsToDisplay.Add(card);
             gambitCardsToDisplayPlayerIds.Add(playerId);
             if (gambitCardsToDisplay.Count > 0)
+            {
+                var getGabitSuitSnapshot = await DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").GetValueAsync();
+                string gambitSuitValue = getGabitSuitSnapshot.Value.ToString();
+                if (!string.IsNullOrEmpty(gambitSuitValue))
+                    gambitSuit = gambitSuitValue;
                 StartCoroutine(DisplayGambitCards());
+            }
             else
                 Debug.Log("no gambitcards to display");
         }
@@ -270,19 +277,18 @@ public class GameController : MonoBehaviour
             Debug.LogWarning("Not my turn");
             yield break;
         }
-        yield return new WaitForSeconds(1);
+        roundIsActive = true;
         Debug.Log("Before updating local");
         yield return StartCoroutine(UpdateLocalDataFromFirebase());
         yield return new WaitForSeconds(1);
 
-        roundIsActive = true;
         playerIndex = playerIds.IndexOf(DataSaver.instance.userId);
         string currentPlayerId = playerIds[playerIndex];
 
         if (currentGameState == (int)Gamestate.distributionOfCards) 
         {
             yield return StartCoroutine(ShuffleAndDealOwnCards(deck));
-            yield return new WaitForSeconds(1);
+            yield return new WaitForSeconds(2);
             endTurnButton.SetActive(true);
         
             var getCurrentGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").GetValueAsync();
@@ -448,7 +454,7 @@ public class GameController : MonoBehaviour
                 card.GetComponent<Button>().enabled = true;
                 card.GetComponent<Image>().color = Color.white;
             }
-            yield return StartCoroutine(UpdateFirebase()); //may remove later
+            yield return new WaitForSeconds(1);
             DatabaseReference gameDataRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
             var getGambitRoundTask = gameDataRef.Child("currentGambitRound").GetValueAsync();
             yield return new WaitUntil(() => getGambitRoundTask.IsCompleted);
@@ -493,11 +499,8 @@ public class GameController : MonoBehaviour
                         var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winnerId).Child("userGameData").Child("score").SetValueAsync(updatedScore);
                         yield return new WaitUntil(() => setPlayerScore.IsCompleted);
 
-                        currentGameState = (int)Gamestate.distributionOfCards;
-                        var setGambitFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambit").SetValueAsync(false);
-                        var setGambitSuit = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync("");
-                        var setScoreRoundZero = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("scoreGameRound").SetValueAsync(0);
-                        yield return new WaitUntil(() => setGambitFalse.IsCompleted && setScoreRoundZero.IsCompleted && setGambitSuit.IsCompleted);
+                        yield return StartCoroutine(DisplayScore());
+                        yield return new WaitForSeconds(1);
                         //deleting all cards in the scene and clearing all lists before updating to firebase
                         CardInfo[] cardInfos = FindObjectsOfType<CardInfo>();
                         foreach (CardInfo cardInfo in cardInfos)
@@ -512,7 +515,9 @@ public class GameController : MonoBehaviour
                         gambitCardsToDisplayPlayerIds.Clear();
                         selectedCardObjects.Clear();
                         deck = allCards;
-                        yield return new WaitForSeconds(1);
+                        var setGambitFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambit").SetValueAsync(false);
+                        var setGambitSuit = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync("");
+                        yield return new WaitUntil(() => setGambitFalse.IsCompleted && setGambitSuit.IsCompleted);
                         Debug.Log("Gambit is over");
                     }
                     gambitCard = null; //Clear all players gambitcards in the database
@@ -660,50 +665,56 @@ public class GameController : MonoBehaviour
     }
 
     IEnumerator DisplayGambitCards()
-    {/*
-        foreach (var slot in gambitSlots)
-        {
-            for (int childCard = 0; childCard < slot.childCount; childCard++)
-            {
-                Destroy(slot.GetChild(childCard).gameObject);
-            }
-        }*/
-        if (gambitCardsToDisplay.Count > 0)
+    {
+        if (gambitCardsToDisplay.Count > 0 && gambitCardsToDisplayPlayerIds.Count > 0)
         {
             for (int i = 0; i < playerIdsForSlot.Count; i++)
             {
-                
-                float offset = 0;
                 string playerId = playerIdsForSlot[i];
-                List<CardScriptableObject> cards = new();
-                cards.Clear();
-                foreach (string card in gambitCardsToDisplayPlayerIds)
+                float xOffset = -0.5f;
+
+                // Iterate through the cards for the current player
+                for (int j = 0; j < gambitCardsToDisplayPlayerIds.Count; j++)
                 {
-                    if (card == playerId)
+                    string cardPlayerId = gambitCardsToDisplayPlayerIds[j];
+                    CardScriptableObject cardToDisplay = gambitCardsToDisplay[j];
+
+                    // Check if the card is for the current player
+                    if (cardPlayerId == playerId)
                     {
-                        cards.Add(gambitCardsToDisplay[gambitCardsToDisplayPlayerIds.IndexOf(card)]);
+                        xOffset += 0.5f;
+                        // Check if the card is already displayed
+                        bool cardAlreadyDisplayed = false;
+                        foreach (Transform existingCardTransform in gambitSlots[i])
+                        {
+                            CardInfo existingCardInfo = existingCardTransform.GetComponent<CardInfo>();
+                            if (existingCardInfo != null && existingCardInfo.cardId == cardToDisplay.cardId)
+                            {
+                                cardAlreadyDisplayed = true;
+                                break;
+                            }
+                        }
+
+                        // If the card is not already displayed, instantiate it
+                        if (!cardAlreadyDisplayed)
+                        {
+                            var currentCard = Instantiate(card, gambitSlots[i]);
+                            if (cardToDisplay.cardId.Contains(gambitSuit) || gambitSuit == string.Empty)
+                                currentCard.GetComponent<Image>().sprite = cardToDisplay.cardSprite;
+                            else
+                                currentCard.GetComponent<Image>().sprite = backOfCardSprite;
+                            currentCard.GetComponent<CardInfo>().power = cardToDisplay.power;
+                            currentCard.GetComponent<CardInfo>().cardId = cardToDisplay.cardId;
+                            currentCard.GetComponent<Button>().enabled = false;
+                            currentCard.transform.position = new Vector2(currentCard.transform.position.x + xOffset, currentCard.transform.position.y);
+                        }
                     }
                 }
-
-                foreach(CardScriptableObject cardToDisplay in cards)
-                {
-                    var currentCard = Instantiate(card, gambitSlots[i]);
-                    //if (cardToDisplay.cardId.Contains(gambitSuit) || gambitSuit == string.Empty)
-                        currentCard.GetComponent<Image>().sprite = cardToDisplay.cardSprite;
-                    //else
-                       //currentCard.GetComponent<Image>().sprite = backOfCardSprite;
-                    currentCard.GetComponent<CardInfo>().power = cardToDisplay.power;
-                    currentCard.GetComponent<CardInfo>().cardId = cardToDisplay.cardId;
-                    currentCard.GetComponent<Button>().enabled = false;
-                    currentCard.transform.position = new Vector2(currentCard.transform.position.x + offset, currentCard.transform.position.y);
-                    offset += 1;
-
-                }       
+                #endregion
             }
         }
         yield return null;
     }
-    #endregion
 
     #region UpdateFireBaseAndLocalCards
     IEnumerator UpdateFirebase()
@@ -724,7 +735,7 @@ public class GameController : MonoBehaviour
             firebaseGambitCard = gambitCard.cardId;
         else    
             firebaseGambitCard = "";
-
+        yield return new WaitForSeconds(0.5f); //So all lists have time to update 
         var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(firebaseHand);
         var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
@@ -847,10 +858,20 @@ public class GameController : MonoBehaviour
         }
         else
         {
+            currentGameState = (int)Gamestate.distributionOfCards;
             gambitCardsInPlay.Clear();
             gambitCardsToDisplay.Clear();
             gambitCardsToDisplayPlayerIds.Clear();
-            currentGameState = (int)Gamestate.distributionOfCards;
+            for (int i = 0; i < gambitSlots.Count; i++)
+            {
+                if (gambitSlots[i].childCount > 0)
+                {
+                    for (int childCard = 0; childCard < gambitSlots[i].childCount; childCard++)
+                    {
+                        Destroy(gambitSlots[i].GetChild(childCard).gameObject);
+                    }
+                }
+            }
             Debug.Log("Not Gabit round");
         }
         yield return StartCoroutine(DisplayScore()); //May remove yield return or move this call
@@ -878,13 +899,13 @@ public class GameController : MonoBehaviour
             if (selectedCardObjects.Contains(cardObject))
             {
                 selectedCardObjects.Remove(cardObject);
-                cardObject.GetComponent<Image>().color = Color.white;
+                cardObject.GetComponent<Image>().color = new Color(0.95f, 1, 0.75f);
             }
             else
             {
                 foreach (GameObject card in selectedCardObjects) 
                 {
-                    card.GetComponent<Image>().color = Color.white;
+                    card.GetComponent<Image>().color = new Color(0.95f, 1, 0.75f);
                 }
                 selectedCardObjects.Clear();
                 selectedCardObjects.Add(cardObject);
@@ -935,7 +956,7 @@ public class GameController : MonoBehaviour
                         userHandObjects.Remove(selectedCardObject);
                         if (firstGambitCard)
                         {
-                            var setGabitSuitFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync(cardToRemove.cardSuit.ToString());
+                            DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync(cardToRemove.cardSuit.ToString());
                             gambitSuit = cardToRemove.cardSuit.ToString();
                         }
                         if (gambitCard != null)
@@ -1012,7 +1033,7 @@ public class GameController : MonoBehaviour
                         else
                         {
                             card.GetComponent<Button>().enabled = true;
-                            card.GetComponent<Image>().color = Color.white;
+                            card.GetComponent<Image>().color = new Color(0.95f, 1, 0.75f);
                             amountOfSuitInHand++;
                         }
                     }
@@ -1021,7 +1042,7 @@ public class GameController : MonoBehaviour
                         foreach (GameObject card in userHandObjects)
                         {
                             card.GetComponent<Button>().enabled = true;
-                            card.GetComponent<Image>().color = Color.white;
+                            card.GetComponent<Image>().color = new Color(0.95f, 1, 0.75f);
                         }
                     }
                 }
@@ -1031,7 +1052,7 @@ public class GameController : MonoBehaviour
                 foreach (GameObject card in userHandObjects)
                 {
                     card.GetComponent<Button>().enabled = true;
-                    card.GetComponent<Image>().color = Color.white;
+                    card.GetComponent<Image>().color = new Color(0.95f, 1, 0.75f);
                 }
             }
         }
