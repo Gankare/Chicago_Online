@@ -412,8 +412,6 @@ public class GameController : MonoBehaviour
     IEnumerator EndPlayerTurn()
     {
         string currentPlayerId = playerIds[playerIndex];
-        turnTimer = 0;
-        turnTimerRef.SetValueAsync(turnTimer);
         if (currentGameState == (int)Gamestate.distributionOfCards) 
         {
             endTurnButton.SetActive(false);
@@ -509,7 +507,12 @@ public class GameController : MonoBehaviour
                         var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winnerId).Child("userGameData").Child("score").SetValueAsync(updatedScore);
                         yield return new WaitUntil(() => setPlayerScore.IsCompleted);
 
-                        //yield return StartCoroutine(DisplayScore());
+                        StartCoroutine(DisplayScore());
+                        if (updatedScore >= 52) //Player wins 
+                        {
+                            var setGameOverTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").SetValueAsync(true);
+                            yield return new WaitUntil(() => setGameOverTrue.IsCompleted);
+                        }
                         //deleting all cards in the scene and clearing all lists before updating to firebase
                         discardPile.Clear();
                         deck.Clear();
@@ -667,7 +670,7 @@ public class GameController : MonoBehaviour
                 currentCard.GetComponent<CardInfo>().power = slot.power;
                 currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
                 userHandObjects.Add(currentCard);
-                yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(1f);
             }
         }
         yield return null;
