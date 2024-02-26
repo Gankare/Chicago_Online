@@ -117,7 +117,21 @@ public class GameController : MonoBehaviour
     async void HandleGambitCardChanged(string playerId, ValueChangedEventArgs args)
     {
         if (currentGameState != (int)Gamestate.gambit)
+        {
+            foreach (var slot in gambitSlots)
+            {
+                if(slot.childCount > 0)
+                {
+                    for (int childCard = 0; childCard < slot.childCount; childCard++)
+                    {
+                        Destroy(slot.GetChild(childCard).gameObject);
+                    }
+                }
+            }
+            gambitCardsToDisplay.Clear();
+            gambitCardsToDisplayPlayerIds.Clear();
             return;
+        }
 
         var gambitCardId = args.Snapshot.Value.ToString();
 
@@ -478,7 +492,7 @@ public class GameController : MonoBehaviour
                             }
                         }
                     }
-                    if (hand.Count == 0)
+                    if (hand.Count == 0 || hand == null)
                     {
                         var getPlayerScoreTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winnerId).Child("userGameData").Child("score").GetValueAsync();
                         yield return new WaitUntil(() => getPlayerScoreTask.IsCompleted);
@@ -495,21 +509,23 @@ public class GameController : MonoBehaviour
                         var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winnerId).Child("userGameData").Child("score").SetValueAsync(updatedScore);
                         yield return new WaitUntil(() => setPlayerScore.IsCompleted);
 
-                        yield return StartCoroutine(DisplayScore());
+                        //yield return StartCoroutine(DisplayScore());
                         //deleting all cards in the scene and clearing all lists before updating to firebase
-                        foreach (var slot in gambitSlots)
-                        {
-                            for (int childCard = 0; childCard < slot.childCount; childCard++)
-                            {
-                                Destroy(slot.GetChild(childCard).gameObject);
-                            }
-                        }
                         discardPile.Clear();
-                        deck = allCards;
+                        deck.Clear();
+                        deck.AddRange(allCards);
                         var setGambitFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambit").SetValueAsync(false);
                         var setGambitSuit = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync("");
                         yield return new WaitUntil(() => setGambitFalse.IsCompleted && setGambitSuit.IsCompleted);
-                        Debug.Log("Gambit is over"); 
+                        Debug.Log("Gambit is over");
+                        yield return StartCoroutine(UpdateFirebase());
+                        Debug.Log("Gambit firebase has loaded succesfully");
+                        var removeTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
+                        yield return new WaitUntil(() => removeTurn.IsCompleted);
+                        if (!gameOver)
+                            PassTurnToGambitWinner(winnerId);
+                        roundIsActive = false;
+                        yield break;
                     }
                     yield return StartCoroutine(UpdateFirebase());
                     //Clear all players gambitcards in the database
@@ -519,7 +535,8 @@ public class GameController : MonoBehaviour
                     }
                     var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
                     yield return new WaitUntil(() => removeUserTurn.IsCompleted);
-                    PassTurnToGambitWinner(winnerId);
+                    if (!gameOver)
+                        PassTurnToGambitWinner(winnerId);
                     roundIsActive = false;
                     yield break;   
                 }
@@ -650,7 +667,7 @@ public class GameController : MonoBehaviour
                 currentCard.GetComponent<CardInfo>().power = slot.power;
                 currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
                 userHandObjects.Add(currentCard);
-                yield return new WaitForSeconds(0.2f);
+                yield return new WaitForSeconds(0.5f);
             }
         }
         yield return null;
@@ -715,14 +732,35 @@ public class GameController : MonoBehaviour
         firebaseDiscardPile.Clear();
         firebaseDeck.Clear();
 
-        foreach (CardScriptableObject card in hand)
-            firebaseHand.Add(card.cardId);
+        if(hand.Count == 0 || hand == null)
+        {
+            firebaseHand.Add("");
+        }
+        else
+        {
+            foreach (CardScriptableObject card in hand)
+                firebaseHand.Add(card.cardId);
+        }
 
-        foreach (CardScriptableObject card in discardPile)
+        if (discardPile.Count == 0 || discardPile == null)
+        {
+            firebaseDiscardPile.Add("");
+        }
+        else
+        {
+            foreach (CardScriptableObject card in discardPile)
             firebaseDiscardPile.Add(card.cardId);
+        }
 
-        foreach (CardScriptableObject card in deck)
+        if (deck.Count == 0 || deck == null)
+        {
+            firebaseDeck.Add("");
+        }
+        else
+        {
+            foreach (CardScriptableObject card in deck)
             firebaseDeck.Add(card.cardId);
+        }
 
         if (gambitCard != null)
             firebaseGambitCard = gambitCard.cardId;
@@ -849,6 +887,7 @@ public class GameController : MonoBehaviour
         }
         else
         {
+            gambitCard = null;
             gambitCardsInPlay.Clear();
             gambitCardsToDisplay.Clear();
             gambitCardsToDisplayPlayerIds.Clear();
@@ -881,7 +920,7 @@ public class GameController : MonoBehaviour
             else
             {
                 selectedCardObjects.Add(cardObject);
-                cardObject.GetComponent<Image>().color = Color.red;
+                cardObject.GetComponent<Image>().color = new Color(1, 0.55f, 0.55f);
             }           
         }
         else if (currentGameState == (int)Gamestate.gambit) //If gambit then only 1 card can be choosen
@@ -899,7 +938,7 @@ public class GameController : MonoBehaviour
                 }
                 selectedCardObjects.Clear();
                 selectedCardObjects.Add(cardObject);
-                cardObject.GetComponent<Image>().color = Color.red;
+                cardObject.GetComponent<Image>().color = new Color(1, 0.55f, 0.55f);
             }
         }
     }
