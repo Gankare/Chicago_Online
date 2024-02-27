@@ -34,9 +34,9 @@ public class DataSaver : MonoBehaviour
     }
     #endregion
 
-    public DataToSave dts; //Data to save
+    public DataToSave dts; 
     public string userId;
-    public DatabaseReference dbRef; //Data base refrence
+    public DatabaseReference dbRef; 
 
     public bool nameExists = false;
 
@@ -68,13 +68,8 @@ public class DataSaver : MonoBehaviour
             Debug.Log("Server data found");
             dts = JsonUtility.FromJson<DataToSave>(jsonData);
 
-            // Load friend requests
             yield return StartCoroutine(LoadFriendRequests());
-
-            // Load current friends
             yield return StartCoroutine(LoadFriends());
-
-            // Save data after loading
             SaveData();
         }
         else
@@ -85,7 +80,6 @@ public class DataSaver : MonoBehaviour
 
     IEnumerator LoadFriendRequests()
     {
-        // Clear the existing friend requests
         dts.friendRequests.Clear();
 
         var friendRequestsData = dbRef.Child("friendRequests").Child(userId).GetValueAsync();
@@ -111,7 +105,6 @@ public class DataSaver : MonoBehaviour
 
     IEnumerator LoadFriends()
     {
-        // Clear the existing friends
         dts.friends.Clear();
 
         var friendsData = dbRef.Child("userFriends").Child(userId).GetValueAsync();

@@ -19,20 +19,17 @@ public class AuthManager : MonoBehaviour
     }
     #endregion
 
-    //Firebase variables
     [Header("Firebase")]
     public DependencyStatus dependencyStatus;
     public FirebaseAuth auth;
     public FirebaseUser user;
 
-    //Login variables
     [Header("Login")]
     public TMP_InputField emailLoginField;
     public TMP_InputField passwordLoginField;
     public TMP_Text warningLoginText;
     public TMP_Text confirmLoginText;
 
-    //Register variables
     [Header("Register")]
     public TMP_InputField usernameRegisterField;
     public TMP_InputField emailRegisterField;
@@ -42,13 +39,11 @@ public class AuthManager : MonoBehaviour
 
     void Start()
     {
-        //Check that all of the necessary dependencies for Firebase are present on the system
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWith(task =>
         {
             dependencyStatus = task.Result;
             if (dependencyStatus == DependencyStatus.Available)
             {
-                //If they are avalible Initialize Firebase
                 InitializeFirebase();
             }
             else
@@ -60,28 +55,22 @@ public class AuthManager : MonoBehaviour
 
     private void InitializeFirebase()
     {
-        //Set the authentication instance object
         auth = FirebaseAuth.DefaultInstance;
     }
 
     #region Login
-    //Function for the login button
     public void LoginButton()
     {
-        //Call the login coroutine passing the email and password
         StartCoroutine(Login(emailLoginField.text, passwordLoginField.text));
     }
 
     private IEnumerator Login(string _email, string _password)
     {
-        //Call the Firebase auth signin function passing the email and password
         Task<AuthResult> LoginTask = auth.SignInWithEmailAndPasswordAsync(_email, _password);
-        //Wait until the task completes
         yield return new WaitUntil(predicate: () => LoginTask.IsCompleted);
 
         if (LoginTask.Exception != null)
         {
-            //If there are errors handle them
             Debug.LogWarning(message: $"Failed to register task with {LoginTask.Exception}");
             FirebaseException firebaseEx = LoginTask.Exception.GetBaseException() as FirebaseException;
             AuthError errorCode = (AuthError)firebaseEx.ErrorCode;
@@ -109,8 +98,6 @@ public class AuthManager : MonoBehaviour
         }
         else
         {
-            //User is now logged in
-            //Now get the result
             user = LoginTask.Result.User;
             Debug.LogFormat("User signed in successfully: {0} ({1})", user.DisplayName, user.Email);
             warningLoginText.text = "";
@@ -126,39 +113,30 @@ public class AuthManager : MonoBehaviour
     #endregion
 
     #region Register
-    //Function for the register button
     public void RegisterButton()
     {
-        //Call the register coroutine passing the email, password, and username
         StartCoroutine(Register(emailRegisterField.text, passwordRegisterField.text, usernameRegisterField.text.ToLower()));
     }
     private IEnumerator Register(string _email, string _password, string _username)
     {
         bool isUsernameAvailable = false;
-        // Check username availability
         Task<bool> checkUsernameTask = CheckUsernameAvailability(_username);
         yield return new WaitUntil(() => checkUsernameTask.IsCompleted);
 
         isUsernameAvailable = checkUsernameTask.Result;
-
-        // Continue with the registration process if the username is available
         if (isUsernameAvailable)
         {
             if (_username == "")
             {
-                //If the username field is blank show a warning
                 warningRegisterText.text = "Missing Username";
             }
             else if (passwordRegisterField.text != passwordRegisterVerifyField.text)
             {
-                //If the password does not match show a warning
                 warningRegisterText.text = "Password Does Not Match!";
             }
             else
             {
-                //Call the Firebase auth signin function passing the email and password
                 Task<AuthResult> RegisterTask = auth.CreateUserWithEmailAndPasswordAsync(_email, _password);
-                //Wait until the task completes
                 yield return new WaitUntil(predicate: () => RegisterTask.IsCompleted);
 
                 if (RegisterTask.Exception != null)
@@ -188,23 +166,16 @@ public class AuthManager : MonoBehaviour
                 }
                 else
                 {
-                    //User has now been created
-                    //Now get the result
                     user = RegisterTask.Result.User;
 
                     if (user != null)
                     {
-                        //Create a user profile and set the username
                         UserProfile profile = new UserProfile { DisplayName = _username };
-
-                        //Call the Firebase auth update user profile function passing the profile with the username
                         Task ProfileTask = user.UpdateUserProfileAsync(profile);
-                        //Wait until the task completes
                         yield return new WaitUntil(predicate: () => ProfileTask.IsCompleted);
 
                         if (ProfileTask.Exception != null)
                         {
-                            //If there are errors handle them
                             Debug.LogWarning(message: $"Failed to register task with {ProfileTask.Exception}");
                             FirebaseException firebaseEx = ProfileTask.Exception.GetBaseException() as FirebaseException;
                             AuthError errorCode = (AuthError)firebaseEx.ErrorCode;
@@ -212,8 +183,6 @@ public class AuthManager : MonoBehaviour
                         }
                         else
                         {
-                            //Username is now set
-                            //Now return to login screen
                             DataSaver.instance.userId = user.UserId;
                             DataSaver.instance.dts.userName = user.DisplayName;
                             DataSaver.instance.dts.matchesWon = 0;
@@ -234,16 +203,13 @@ public class AuthManager : MonoBehaviour
         {
             foreach (var userSnapshot in snapshot.Children)
             {
-                // Check if the "userName" field exists and matches the provided username
                 if (userSnapshot.Child("userName").Value.ToString() == username)
                 {
                     warningRegisterText.text = "Username is taken";
-                    // Username exists
                     return false;
                 }
             }
         }
-        // Username is available
         return true;
     }
     #endregion

@@ -20,20 +20,16 @@ public class DisplayServerButton : MonoBehaviour
     {
         button = GetComponent<Button>();
         button.enabled = true;
-
-        // Listen for changes in the server's players
         DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").ChildChanged += HandlePlayerChanged;
         Invoke(nameof(UpdatePlayers), 1f);
     }
     private void OnDisable()
     {
-        // Remove the listener when the script is disabled
         RemovePlayerChangedListener();
     }
 
     private void OnDestroy()
     {
-        // Remove the listener when the object is destroyed
         RemovePlayerChangedListener();
     }
 
@@ -45,10 +41,8 @@ public class DisplayServerButton : MonoBehaviour
     {
         if (this == null)
         {
-            // The object has been destroyed, so we should stop processing
             return;
         }
-        // Handle player connection or disconnection here
         if (!isUpdatingPlayers)
             UpdatePlayers();
     }
@@ -122,7 +116,7 @@ public class DisplayServerButton : MonoBehaviour
     public void UpdatePlayers()
     {
         isUpdatingPlayers = true;
-        if (this == null || joiningServer)  // Check if the script has been destroyed
+        if (this == null || joiningServer) 
         {
             return;
         }

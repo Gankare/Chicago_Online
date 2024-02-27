@@ -35,14 +35,13 @@ public class Player : MonoBehaviour
 
             if (!snapshot.Exists)
             {
-                // Player does not exist, connect the player
+                //Player does not exist, connect the player
                 Debug.Log("add player to server");
                 ServerManager.instance.PlayerConnected(userId);
             }
             else
             {
                 Debug.Log($"User {userId} already exists in the server.");
-                // You can add additional logic here if needed
             }
         });
     }
@@ -50,9 +49,8 @@ public class Player : MonoBehaviour
     {
         while (true)
         {
-            // Update player's last activity timestamp in the database
             UpdatePlayerLastActivity();
-            yield return new WaitForSeconds(10); // Adjust the interval as needed
+            yield return new WaitForSeconds(10);
 
         }
     }
@@ -68,16 +66,11 @@ public class Player : MonoBehaviour
 
         if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(serverId))
         {
-            // Check if the player exists in the server
-            var playerReference = DataSaver.instance.dbRef
-                .Child("servers").Child(serverId)
-                .Child("players").Child(userId);
-
+            var playerReference = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId);
             playerReference.GetValueAsync().ContinueWith(task =>
             {
                 if (task.IsCompleted && task.Result.Exists)
                 {
-                    // Player exists, update the last activity timestamp in the database
                     var serverReference = playerReference
                         .Child("userData").Child("lastActivity");
                     Debug.Log("updating Activity");
@@ -90,9 +83,7 @@ public class Player : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(30f); // Wait for 30 seconds before checking again
-
-            // Get a reference to the players in the server
+            yield return new WaitForSeconds(30f);
             var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
             yield return new WaitUntil(() => playersInServer.IsCompleted);
 
@@ -111,13 +102,9 @@ public class Player : MonoBehaviour
                     string userId = playerSnapshot.Key;
                     var lastActivity = playerSnapshot.Child("userData").Child("lastActivity").Value;
 
-                    // Check if lastActivity exists and is a valid timestamp
                     if (lastActivity != null && long.TryParse(lastActivity.ToString(), out long timestamp))
                     {
-                        // Convert the timestamp to DateTime
                         DateTime lastActivityDateTime = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).UtcDateTime;
-
-                        // Calculate the time difference
                         TimeSpan timeDifference = DateTime.UtcNow - lastActivityDateTime;
 
                         // If the player has been inactive for more than 30 seconds, remove them
@@ -133,10 +120,7 @@ public class Player : MonoBehaviour
 
     private void RemoveInactivePlayer(string userId)
     {
-        // Implement the logic to remove the player from the server using their userId
         var playerReference = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").Child(userId);
-
-        // Remove the player and handle any cleanup tasks
         playerReference.RemoveValueAsync().ContinueWithOnMainThread(task =>
         {
             if (task.IsFaulted || task.IsCanceled)

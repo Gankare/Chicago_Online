@@ -24,18 +24,14 @@ public class FriendButton : MonoBehaviour
     {
         while (true)
         {
-            // Get the list of server nodes
             var serversRef = DataSaver.instance.dbRef.Child("servers");
             var serversTask = serversRef.GetValueAsync();
-
-            // Wait until the task is completed
             yield return new WaitUntil(() => serversTask.IsCompleted);
 
             DataSnapshot serversSnapshot = serversTask.Result;
 
             if (serversSnapshot.Exists)
             {
-                // Iterate through each server node
                 foreach (var serverNode in serversSnapshot.Children)
                 {
                     // Check if the friend is in the current server
@@ -63,7 +59,7 @@ public class FriendButton : MonoBehaviour
                             friendStatusImage.color = Color.yellow;
                             friendServerId = serverNode.Key;
                             Debug.Log(friendServerId);
-                            break; // Exit the loop since we found the server
+                            break;
                         }
                     }
                     else
@@ -77,14 +73,12 @@ public class FriendButton : MonoBehaviour
             }
             else
             {
-                // No servers found, update color to default color (or handle as needed)
+                // No servers found, update color to red
                 joinButton.enabled = false;
                 friendStatusImage.color = Color.red;
                 friendServerId = null;
             }
-
-            // Wait for a specific time before checking again
-            yield return new WaitForSeconds(5f); // You can adjust the interval as needed
+            yield return new WaitForSeconds(5f); 
         }
     }
 
@@ -100,21 +94,14 @@ public class FriendButton : MonoBehaviour
     }
     IEnumerator RemoveFriend(string userId, string friendId)
     {
-        // Wait until both friend removals are complete
         yield return StartCoroutine(Delete(userId, friendId));
-
-        // Load data and wait until it's completed
         yield return StartCoroutine(LoadDataAndWait());
-
-        // Destroy the game object
         Destroy(gameObject);
     }
     IEnumerator Delete(string userId, string friendId)
     {
-        // Remove friends from each other's friend list
         var removeFriendTask1 = DataSaver.instance.dbRef.Child("userFriends").Child(userId).Child(friendId).RemoveValueAsync();
         var removeFriendTask2 = DataSaver.instance.dbRef.Child("userFriends").Child(friendId).Child(userId).RemoveValueAsync();
-        // Wait until both tasks are completed
         yield return new WaitUntil(() => removeFriendTask1.IsCompleted && removeFriendTask2.IsCompleted);
 
         DataSaver.instance.dts.friends.Remove(friendId);
@@ -122,10 +109,7 @@ public class FriendButton : MonoBehaviour
     }
     IEnumerator LoadDataAndWait()
     {
-        // Load data
         var loadDataEnumerator = DataSaver.instance.LoadDataEnum();
-
-        // Iterate through the enumerator until it's done
         while (loadDataEnumerator.MoveNext())
         {
             yield return loadDataEnumerator.Current;
