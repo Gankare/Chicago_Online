@@ -8,7 +8,6 @@ public class OpenLink : MonoBehaviour
 
     public void OpenRules()
     {
-        // Open the Google link in the default browser
         Application.OpenURL(chicagoRulesLink);
     }
 }

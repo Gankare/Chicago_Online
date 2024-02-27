@@ -30,7 +30,6 @@ public class WaitingRoomButtons : MonoBehaviour
 
     private IEnumerator InitializePreviousUserData()
     {
-        // Fetch initial data of all players
         var playersInServerTask = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => playersInServerTask.IsCompleted);
 
@@ -46,21 +45,15 @@ public class WaitingRoomButtons : MonoBehaviour
             var userId = playerSnapshot.Key;
             var userDataSnapshot = playerSnapshot.Child("userData");
 
-            // Construct the previousUserData string based on the current snapshot
             bool readyValue = userDataSnapshot.Child("ready").Exists ? (bool)userDataSnapshot.Child("ready").Value : false;
             previousUserData += $"{userId}:{readyValue};";
         }
-
-        // Subscribe to database events after initializing previousUserData
         SubscribeToDatabaseEvents();
-
-        // Start coroutine to update players' UI
         StartCoroutine(InitLoadPlayers());
     }
 
     void SubscribeToDatabaseEvents()
     {
-        // Subscribe to events for player changes
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded += HandlePlayerAdded;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved += HandlePlayerRemoved;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
@@ -78,13 +71,11 @@ public class WaitingRoomButtons : MonoBehaviour
 
     private void OnDisable()
     {
-        // Remove the listener when the script is disabled
         RemovePlayerChangedListener();
     }
 
     private void OnDestroy()
     {
-        // Remove the listener when the object is destroyed
         RemovePlayerChangedListener();
     }
 
@@ -116,7 +107,6 @@ public class WaitingRoomButtons : MonoBehaviour
 
                 if (gameHasStarted)
                 {
-                    // If the game has started, call the function
                     if (this != null)
                         StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
                 }
@@ -287,11 +277,8 @@ public class WaitingRoomButtons : MonoBehaviour
             foreach (var requestSnapshot in playersSnapshot.Children)
             {
                 playerObjects[players].SetActive(true);
-
-                // Get userId from requestSnapshot
                 string userId = requestSnapshot.Key;
 
-                // Check if the player is ready
                 var isPlayerReady = requestSnapshot.Child("userData").Child("ready").Value;
                 if (isPlayerReady != null)
                 {
@@ -306,8 +293,6 @@ public class WaitingRoomButtons : MonoBehaviour
                         readyCards[players].color = new Color(70f / 255f, 61f / 255f, 79f / 255f); // Purple
                     }
                 }
-
-                // Look up username in "users" node
                 var usernameTask = DataSaver.instance.dbRef.Child("users").Child(userId).Child("userName").GetValueAsync();
                 yield return new WaitUntil(() => usernameTask.IsCompleted);
 
@@ -316,7 +301,6 @@ public class WaitingRoomButtons : MonoBehaviour
                     DataSnapshot usernameSnapshot = usernameTask.Result;
                     if (usernameSnapshot.Exists)
                     {
-                        // Set the player's name in the UI
                         playerNames[players].text = usernameSnapshot.Value.ToString();
                     }
                 }
@@ -356,7 +340,6 @@ public class WaitingRoomButtons : MonoBehaviour
                 bool countdownStartFlag = bool.Parse(countdownStartFlagTask.Result.Value.ToString());
                 if (!countdownStartFlag)
                 {
-                    // Countdown stopped by server
                     countDownText.text = "";
                     Debug.Log("Countdown stopped.");
                     yield break;
@@ -366,8 +349,6 @@ public class WaitingRoomButtons : MonoBehaviour
             for (int i = 3; i > -1; i--)
             {
                 countDownText.text = i.ToString();
-
-                // Check if any player has become unready during the countdown
                 var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
                 yield return new WaitUntil(() => playersInServer.IsCompleted);
 
@@ -399,7 +380,6 @@ public class WaitingRoomButtons : MonoBehaviour
 
                 if (anyPlayerUnready)
                 {
-                    // If any player is unready, stop the countdown
                     Debug.Log("A player became unready. Countdown stopped.");
                     countDownText.text = "";
                     StartCoroutine(UpdatePlayers());

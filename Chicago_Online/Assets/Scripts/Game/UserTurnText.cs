@@ -8,7 +8,7 @@ using Firebase.Database;
 public class UserTurnText : MonoBehaviour
 {
     public TMP_Text userTurn;
-    private string serverId; // Assign the server ID in the Inspector or through script
+    private string serverId;
 
     void Start()
     {
@@ -24,24 +24,13 @@ public class UserTurnText : MonoBehaviour
 
     private void AddListeners()
     {
-        DatabaseReference playersRef = DataSaver.instance.dbRef
-            .Child("servers")
-            .Child(serverId)
-            .Child("players");
-
-        // Listen for changes in the players' data
+        DatabaseReference playersRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players");
         playersRef.ValueChanged += PlayersDataChanged;
     }
 
     private void OnDestroy()
     {
-        // Remove the event listener when the object is destroyed
-        DatabaseReference playersRef = DataSaver.instance.dbRef
-            .Child("servers")
-            .Child(serverId)
-            .Child("players");
-
-        // Remove the event listener
+        DatabaseReference playersRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players");
         playersRef.ValueChanged -= PlayersDataChanged;
     }
 
@@ -72,7 +61,6 @@ public class UserTurnText : MonoBehaviour
         }
     }
 
-    // This method will be called whenever the players' data changes in the database
     private void PlayersDataChanged(object sender, ValueChangedEventArgs args)
     {
         if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
@@ -85,7 +73,7 @@ public class UserTurnText : MonoBehaviour
                 if (isTurn != null && (bool)isTurn)
                 {
                     StartCoroutine(FetchUsername(playerId));
-                    break; // Exit loop after finding the player whose turn it is
+                    break; 
                 }
             }
         }

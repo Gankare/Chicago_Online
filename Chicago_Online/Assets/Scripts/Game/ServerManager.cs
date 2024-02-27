@@ -82,10 +82,7 @@ public class ServerManager : MonoBehaviour
 
     IEnumerator CheckAndRemoveUserFromServer(string userId)
     {
-        // Get a reference to all servers
         var serversReference = DataSaver.instance.dbRef.Child("servers");
-
-        // Retrieve data for all servers
         var serversTask = serversReference.GetValueAsync();
         yield return new WaitUntil(() => serversTask.IsCompleted);
 
@@ -102,11 +99,7 @@ public class ServerManager : MonoBehaviour
             foreach (var serverSnapshot in serversSnapshot.Children)
             {
                 string serverId = serverSnapshot.Key;
-
-                // Check if the user is connected to the current server
                 var userReference = serverSnapshot.Child("players").Child(userId);
-
-                // Use an asynchronous method to retrieve user data
                 yield return StartCoroutine(GetUserAsync(userReference, userId, serverId));
             }
         }
@@ -114,32 +107,26 @@ public class ServerManager : MonoBehaviour
 
     IEnumerator GetUserAsync(DataSnapshot userSnapshot, string userId, string serverId)
     {
-        // Assuming userId is a direct child under the "players" node
         var userReference = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId);
-
-        // Retrieve user data for the current server
         var userTask = userReference.GetValueAsync();
         yield return new WaitUntil(() => userTask.IsCompleted);
 
         if (userTask.IsFaulted || userTask.IsCanceled)
         {
             Debug.LogError($"Error checking user {userId} in server {serverId}. Error: {userTask.Exception}");
-            yield break; // Move on to the next server
+            yield break;
         }
 
         userSnapshot = userTask.Result;
 
         if (userSnapshot.Exists)
         {
-            // User is connected to this server, remove them
             StartCoroutine(RemoveUserFromServer(userId, serverId));
         }
     }
 
-
     IEnumerator RemoveUserFromServer(string userId, string serverId)
     {
-        // Remove the user from the server
         var removeUserTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId).RemoveValueAsync();
         yield return new WaitUntil(() => removeUserTask.IsCompleted);
 
@@ -284,28 +271,21 @@ public class ServerManager : MonoBehaviour
 
                 if (allPlayersReady)
                 {
-                    // Set a flag in the database to indicate that the countdown should start
                     var countdownStartFlagTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("countdownStartFlag").SetValueAsync(true);
                     yield return new WaitUntil(() => countdownStartFlagTask.IsCompleted);
 
-                    // Start the countdown on the local client
                     if (countdownStartFlagTask.Exception == null)
                     {
                         WaitingRoomButtons waitingRoom = FindObjectOfType<WaitingRoomButtons>();
                         StartCoroutine(waitingRoom.CountDownBeforeStart());
                     }
-
-                    // Break out of the loop since all players are ready
                     break;
                 }
             }
             else
             {
-                // Not enough players in the server, handle as needed (e.g., wait for players to join)
                 Debug.Log("Not enough players to start");
             }
-
-            // Wait for 1 second before checking again
             yield return new WaitForSeconds(1);
         }
     }
