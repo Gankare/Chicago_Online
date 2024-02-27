@@ -55,7 +55,6 @@ public class GameController : MonoBehaviour
     private float turnDuration = 20f; 
     private string serverId;
     private int playerIndex = 0; 
-    private bool roundIsActive = false;
     private bool turnEndedEarly = false;
     private DatabaseReference turnTimerRef;
     private Regex suitRegex = new (@"(Hearts|Diamonds|Clubs|Spades)");
@@ -251,12 +250,6 @@ public class GameController : MonoBehaviour
     #region StartRoundAndGiveUserCards
     IEnumerator StartNextRound()
     {
-        if (roundIsActive)
-        {
-            Debug.LogWarning("Round already active.");
-            yield break;
-        }
-
         if (playerIds.Count == 0)
         {
             Debug.LogWarning("No player IDs found.");
@@ -280,7 +273,6 @@ public class GameController : MonoBehaviour
             Debug.LogWarning("Not my turn");
             yield break;
         }
-        roundIsActive = true;
         yield return StartCoroutine(UpdateLocalDataFromFirebase());
         yield return StartCoroutine(DisplayScore());
         Debug.Log("after updating local");
@@ -525,7 +517,6 @@ public class GameController : MonoBehaviour
                     yield return new WaitUntil(() => removeUserTurn.IsCompleted);
                     if (!gameOver)
                     {
-                        roundIsActive = false;
                         yield return new WaitForSeconds(1);
                         PassTurnToGambitWinner(winnerId);
                     }
@@ -542,7 +533,6 @@ public class GameController : MonoBehaviour
         }
         else
             yield break;
-        roundIsActive = false;
     }
     IEnumerator UpdateDeckAsync()
     {
