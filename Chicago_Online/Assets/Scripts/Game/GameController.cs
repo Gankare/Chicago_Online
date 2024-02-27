@@ -151,7 +151,6 @@ public class GameController : MonoBehaviour
             bool isGameOver = (bool)args.Snapshot.Value;
             if (isGameOver)
             {
-                Debug.Log("Starting gameover");
                 StartCoroutine(GameOver());
             }
         }
@@ -275,7 +274,6 @@ public class GameController : MonoBehaviour
         }
         yield return StartCoroutine(UpdateLocalDataFromFirebase());
         yield return StartCoroutine(DisplayScore());
-        Debug.Log("after updating local");
 
         playerIndex = playerIds.IndexOf(DataSaver.instance.userId);
         string currentPlayerId = playerIds[playerIndex];
@@ -289,10 +287,7 @@ public class GameController : MonoBehaviour
             yield return new WaitUntil(() => getCurrentGameRound.IsCompleted);
             if (getCurrentGameRound.Result != null)
             {
-                // Increment the current value
                 int newGameRoundValue = int.Parse(getCurrentGameRound.Result.Value.ToString()) + 1;
-
-                // Set the new string value back to the database
                 var setGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").SetValueAsync(newGameRoundValue);
                 yield return new WaitUntil(() => setGameRound.IsCompleted);
             }
@@ -365,7 +360,6 @@ public class GameController : MonoBehaviour
                     List<GameObject> cardsOfSuitInHand = new();
                     foreach (GameObject card in userHandObjects)
                     {
-                        //if (card.GetComponent<CardInfo>().cardId.Contains(gambitSuit.ToString()))
                         if (card.gameObject.GetComponent<CardInfo>().cardId.Contains(gambitSuit))
                         {
                             amountOfSuitInHand++;
@@ -628,8 +622,6 @@ public class GameController : MonoBehaviour
                 shuffledDeck.RemoveAt(0);
             }
         }
-        else
-            Debug.Log("No cards needed");
     }
     IEnumerator DeckEmptyReShuffle()
     {
@@ -670,9 +662,9 @@ public class GameController : MonoBehaviour
 
     IEnumerator DisplayGambitCards()
     {
-        // Proceed with displaying cards if the lists are not null or empty
         for (int i = 0; i < playerIdsForSlot.Count; i++)
         {
+            // Proceed with displaying cards if the lists are not null or empty
             if (gambitCardsToDisplay == null || gambitCardsToDisplayPlayerIds == null ||
             gambitCardsToDisplay.Count == 0 || gambitCardsToDisplayPlayerIds.Count == 0)
             {
@@ -841,7 +833,7 @@ public class GameController : MonoBehaviour
 
         if ((bool)getGambitBool.Result.Value) //If gambit is taking place, Get all cards in play to a list for displaying
         {
-            background.color = new Color(1, 0.55f, 0.55f); //Gambit background color
+            background.color = new Color(1, 0.55f, 0.55f); 
             gambitCardsInPlay.Clear();
             foreach (string playerId in playerIds)
             {
@@ -905,7 +897,6 @@ public class GameController : MonoBehaviour
                 if(gambitCardsToDisplayPlayerIds != null)
                     gambitCardsToDisplayPlayerIds.Clear();
             }
-            Debug.Log("Not Gabit round");
             currentGameState = (int)Gamestate.distributionOfCards;
         }
     }
@@ -996,7 +987,6 @@ public class GameController : MonoBehaviour
                         {
                             discardPile.Add(gambitCard);
                             gambitCardsInPlay.Remove(DataSaver.instance.userId);
-                            //Destroy gameobject here ?
                         }
                         gambitCard = cardToRemove;
                         gambitCardsInPlay.Add(DataSaver.instance.userId, gambitCard);
@@ -1317,7 +1307,7 @@ public class GameController : MonoBehaviour
             Debug.Log($"Player {playerId} hand: {string.Join(", ", cards)}");
         }
 
-        // Find the player(s) with the highest hand value
+        // Find the players with the highest hand value
         int highestScore = -1;
         List<string> winningPlayerIds = new();
 
@@ -1370,7 +1360,6 @@ public class GameController : MonoBehaviour
                 Debug.LogError("Error updating player score in Firebase.");
                 yield break;
             }
-            //Addscore text here
             yield return StartCoroutine(DisplayScore());
             if (updatedScore >= 52) //Player wins 
             {
@@ -1403,7 +1392,6 @@ public class GameController : MonoBehaviour
                         string suitStr = suitMatch.Value;
                         string numberStr = numberMatch.Value;
 
-                        // Convert the number string to its corresponding enum value
                         if (Enum.TryParse<CardScriptableObject.Suit>(suitStr, out CardScriptableObject.Suit cardSuit) &&
                             Enum.TryParse<CardScriptableObject.CardHierarchy>(numberStr, out CardScriptableObject.CardHierarchy cardNumber))
                         {
@@ -1468,7 +1456,6 @@ public class GameController : MonoBehaviour
                     Debug.LogError("Error updating player score in Firebase.");
                     yield break;
                 }
-                //Add score text here
                 yield return StartCoroutine(DisplayScore());
                 if (updatedScore >= 52) //Player wins 
                 {
