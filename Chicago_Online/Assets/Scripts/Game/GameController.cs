@@ -498,6 +498,7 @@ public class GameController : MonoBehaviour
                         {
                             var setGameOverTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").SetValueAsync(true);
                             yield return new WaitUntil(() => setGameOverTrue.IsCompleted);
+                            yield break;
                         }
                         //deleting all cards in the scene and clearing all lists before updating to firebase
                         yield return StartCoroutine(UpdateDeckAsync());
@@ -511,7 +512,6 @@ public class GameController : MonoBehaviour
                     {
                         var setGambitCards = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(playerid).Child("userGameData").Child("gambitCard").SetValueAsync("");
                         yield return new WaitUntil(() => setGambitCards.IsCompleted);
-                        Debug.Log("Tjomme");
                     }
                     var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
                     yield return new WaitUntil(() => removeUserTurn.IsCompleted);
@@ -898,13 +898,12 @@ public class GameController : MonoBehaviour
                         Destroy(gambitSlots[i].GetChild(childCard).gameObject);
                     }
                 }
-            gambitCard = null;
-            gambitCardsInPlay.Clear();
-            if(gambitCardsToDisplay != null) 
-                gambitCardsToDisplay.Clear();
-            if(gambitCardsToDisplayPlayerIds != null)
-                gambitCardsToDisplayPlayerIds.Clear();
-
+                gambitCard = null;
+                gambitCardsInPlay.Clear();
+                if(gambitCardsToDisplay != null) 
+                    gambitCardsToDisplay.Clear();
+                if(gambitCardsToDisplayPlayerIds != null)
+                    gambitCardsToDisplayPlayerIds.Clear();
             }
             Debug.Log("Not Gabit round");
             currentGameState = (int)Gamestate.distributionOfCards;
