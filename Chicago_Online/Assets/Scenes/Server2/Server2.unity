@@ -2978,6 +2978,7 @@ MonoBehaviour:
   - {fileID: 1333557031}
   backOfCardSprite: {fileID: 487652763, guid: 0afc290f2fe603840b0c9328f1220a4e, type: 3}
   gambitSuit: 
+  background: {fileID: 1752903585}
 --- !u!114 &1750005974
 MonoBehaviour:
   m_ObjectHideFlags: 0

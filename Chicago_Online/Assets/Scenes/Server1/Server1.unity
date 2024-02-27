@@ -729,6 +729,10 @@ MonoBehaviour:
   discardPile: []
   hand: []
   userHandObjects: []
+  gambitCardsInPlay:
+    _serializedList: []
+  gambitCardsToDisplay: []
+  gambitCardsToDisplayPlayerIds: []
   gambitCard: {fileID: 0}
   firebaseDiscardPile: []
   firebaseDeck: []
@@ -754,6 +758,7 @@ MonoBehaviour:
   - {fileID: 1945265121}
   backOfCardSprite: {fileID: 487652763, guid: 0afc290f2fe603840b0c9328f1220a4e, type: 3}
   gambitSuit: 
+  background: {fileID: 1546590337}
 --- !u!114 &614527950
 MonoBehaviour:
   m_ObjectHideFlags: 0
