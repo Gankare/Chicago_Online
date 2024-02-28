@@ -23,7 +23,8 @@ public class GameController : MonoBehaviour
         distributionOfCards,
         gambit
     }
-    //public TMP_Text chaInformationtText;
+
+    public ChatManager chatManager;
     public int currentGameState;
     public List<CardScriptableObject> allCards = new();
     public List<CardScriptableObject> deck = new();
@@ -238,6 +239,7 @@ public class GameController : MonoBehaviour
                     var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
                     yield return new WaitUntil(() => setTurnTrue.IsCompleted);
                 }
+                //いchatManager.AddMessageToChat($"{playerIds.Count} Players connected");
                 ListenForPlayerTurn();
                 yield return StartCoroutine(DisplayScore());
                 ListenForGambitCards();
@@ -281,7 +283,6 @@ public class GameController : MonoBehaviour
         if (currentGameState == (int)Gamestate.distributionOfCards) 
         {
             yield return StartCoroutine(ShuffleAndDealOwnCards(deck));
-            endTurnButton.SetActive(true);
         
             var getCurrentGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGameRound").GetValueAsync();
             yield return new WaitUntil(() => getCurrentGameRound.IsCompleted);
@@ -299,7 +300,6 @@ public class GameController : MonoBehaviour
         else if (currentGameState == (int)Gamestate.gambit)
         {
             UpdateCardButtons();
-            endTurnButton.SetActive(true);
 
             var getCurrentGameRound = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("currentGambitRound").GetValueAsync();
             yield return new WaitUntil(() => getCurrentGameRound.IsCompleted);
@@ -315,6 +315,7 @@ public class GameController : MonoBehaviour
             }
         }
         StartCoroutine(PlayerTurnTimer());
+        endTurnButton.SetActive(true);
     }
 
     private IEnumerator PlayerTurnTimer()
@@ -435,6 +436,7 @@ public class GameController : MonoBehaviour
         }
         else if (currentGameState == (int)Gamestate.gambit)
         {
+            bool gambitOver = false;
             turnEndedEarly = false;
             endTurnButton.SetActive(false);
 
@@ -472,6 +474,7 @@ public class GameController : MonoBehaviour
                     }
                     if (hand.Count == 0 || hand == null)
                     {
+                        gambitOver = true;
                         var getPlayerScoreTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winnerId).Child("userGameData").Child("score").GetValueAsync();
                         yield return new WaitUntil(() => getPlayerScoreTask.IsCompleted);
 
@@ -487,6 +490,7 @@ public class GameController : MonoBehaviour
                         var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winnerId).Child("userGameData").Child("score").SetValueAsync(updatedScore);
                         yield return new WaitUntil(() => setPlayerScore.IsCompleted);
 
+                        //いStartCoroutine(chatManager.AddScoreMessageToChat($"Got {5} points for ", winnerId, 5, true));
                         StartCoroutine(DisplayScore());
                         if (updatedScore >= 52) //Player wins 
                         {
@@ -511,7 +515,10 @@ public class GameController : MonoBehaviour
                     yield return new WaitUntil(() => removeUserTurn.IsCompleted);
                     if (!gameOver)
                     {
-                        yield return new WaitForSeconds(1);
+                        if(gambitOver) 
+                            yield return new WaitForSeconds(3f);
+                        else
+                            yield return new WaitForSeconds(1f);
                         PassTurnToGambitWinner(winnerId);
                     }
                     yield break;   
@@ -580,7 +587,7 @@ public class GameController : MonoBehaviour
         deck = shuffledDeck;
 
         DealCards(deck);
-        yield return StartCoroutine(DisplayCardsDrawn());
+        StartCoroutine(DisplayCardsDrawn());
         yield return null;
     }
 
@@ -787,43 +794,11 @@ public class GameController : MonoBehaviour
         DataSnapshot serverDiscardPileSnapshot = getServerDiscardPileTask.Result;
         DataSnapshot serverDeckSnapshot = getServerDeckTask.Result;
 
-        if (userHandSnapshot != null)
-        {
-            foreach (DataSnapshot cardSnapshot in userHandSnapshot.Children)
-            {
-                string cardId = cardSnapshot.Value.ToString();
-                CardScriptableObject card = GetCardFromId(cardId);
-                if (card != null)
-                {
-                    hand.Add(card);
-                }
-            }
-        }
-        if (serverDiscardPileSnapshot != null)
-        {
-            foreach (DataSnapshot cardSnapshot in serverDiscardPileSnapshot.Children)
-            {
-                string cardId = cardSnapshot.Value.ToString();
-                CardScriptableObject card = GetCardFromId(cardId);
-                if (card != null)
-                {
-                    discardPile.Add(card);
-                }
-            }
-        }
-        if (serverDeckSnapshot != null)
-        {
-            foreach (DataSnapshot cardSnapshot in serverDeckSnapshot.Children)
-            {
-                string cardId = cardSnapshot.Value.ToString();
-                CardScriptableObject card = GetCardFromId(cardId);
-                if (card != null)
-                {
-                    deck.Add(card);
-                }
-            }
-        }
-        if(hand.Count > 0)
+        yield return PopulateListFromSnapshot(hand, userHandSnapshot);
+        yield return PopulateListFromSnapshot(discardPile, serverDiscardPileSnapshot);
+        yield return PopulateListFromSnapshot(deck, serverDeckSnapshot);
+
+        if (hand.Count > 0)
         {
             for (int i = 0; i < handSlot.childCount; i++) 
             {
@@ -900,6 +875,22 @@ public class GameController : MonoBehaviour
             currentGameState = (int)Gamestate.distributionOfCards;
         }
     }
+    IEnumerator PopulateListFromSnapshot(List<CardScriptableObject> list, DataSnapshot snapshot)
+    {
+        if (snapshot != null)
+        {
+            foreach (DataSnapshot cardSnapshot in snapshot.Children)
+            {
+                string cardId = cardSnapshot.Value.ToString();
+                CardScriptableObject card = GetCardFromId(cardId);
+                if (card != null)
+                {
+                    list.Add(card);
+                }
+            }
+        }
+        yield return null; 
+    }
     #endregion
 
     #region PlayerCardActions
@@ -941,6 +932,7 @@ public class GameController : MonoBehaviour
     {
         if (!turnEndedEarly && currentGameState == (int)Gamestate.distributionOfCards)
         {
+            //いchatManager.AddDiscardMessageToChat($"Threw {selectedCardObjects.Count} Cards", DataSaver.instance.dts.userName);
             foreach (GameObject selectedCardObject in selectedCardObjects)
             {
                 CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
@@ -962,7 +954,7 @@ public class GameController : MonoBehaviour
             turnEndedEarly = true;
             turnTimer = 0;
             turnTimerRef.SetValueAsync(0f);
-            Invoke(nameof(InvokeEndPlayerTurn), 0.5f);
+            Invoke(nameof(InvokeEndPlayerTurn), 0.5f); //1
         }
 
         else if (!turnEndedEarly && currentGameState == (int)Gamestate.gambit)
@@ -1357,6 +1349,7 @@ public class GameController : MonoBehaviour
 
             if (setPlayerScore.Exception != null)
             {
+                //いStartCoroutine(chatManager.AddScoreMessageToChat($"Got {highestScore} points for ", winningPlayerId, highestScore, false));
                 Debug.LogError("Error updating player score in Firebase.");
                 yield break;
             }
@@ -1421,6 +1414,7 @@ public class GameController : MonoBehaviour
                 }
                 else if (totalHandValue == highestTotalHandValue)
                 {
+                    //いchatManager.AddMessageToChat("players have the same value hand, no one gets score");
                     Debug.LogError("Both players have the same value hand, no one gets score");
                     yield break;
                 }
@@ -1450,7 +1444,7 @@ public class GameController : MonoBehaviour
 
                 var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("score").SetValueAsync(updatedScore);
                 yield return new WaitUntil(() => setPlayerScore.IsCompleted);
-
+                //いStartCoroutine(chatManager.AddScoreMessageToChat($"Got {highestScore} points for ", winningPlayerId, highestScore, false));
                 if (setPlayerScore.Exception != null)
                 {
                     Debug.LogError("Error updating player score in Firebase.");
