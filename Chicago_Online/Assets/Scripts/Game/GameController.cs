@@ -13,7 +13,7 @@ using System;
 using System.Text.RegularExpressions;
 using UnityEngine.SceneManagement;
 using AYellowpaper.SerializedCollections;
-
+using System.Threading.Tasks;
 
 public class GameController : MonoBehaviour
 {
@@ -130,6 +130,7 @@ public class GameController : MonoBehaviour
                 Debug.Log("no gambitcards to display");
         }
     }
+
     private void PlayerTurnValueChanged(object sender, ValueChangedEventArgs args)
     {
         if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
@@ -239,7 +240,7 @@ public class GameController : MonoBehaviour
                     var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
                     yield return new WaitUntil(() => setTurnTrue.IsCompleted);
                 }
-                //いchatManager.AddMessageToChat($"{playerIds.Count} Players connected");
+                chatManager.AddMessageToChat($"{playerIds.Count} Players connected");
                 ListenForPlayerTurn();
                 yield return StartCoroutine(DisplayScore());
                 ListenForGambitCards();
@@ -490,7 +491,13 @@ public class GameController : MonoBehaviour
                         var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winnerId).Child("userGameData").Child("score").SetValueAsync(updatedScore);
                         yield return new WaitUntil(() => setPlayerScore.IsCompleted);
 
-                        //いStartCoroutine(chatManager.AddScoreMessageToChat($"Got {5} points for ", winnerId, 5, true));
+                        string username;
+                        DatabaseReference userRef = DataSaver.instance.dbRef.Child("users").Child(winnerId);
+                        var fetchTask = userRef.Child("userName").GetValueAsync();
+                        yield return new WaitUntil(() => fetchTask.IsCompleted);
+                        username = fetchTask.Result.Value.ToString();
+                        chatManager.AddScoreMessageToChat($"Got {5} points for ", username, 5, true);
+
                         StartCoroutine(DisplayScore());
                         if (updatedScore >= 52) //Player wins 
                         {
@@ -727,11 +734,30 @@ public class GameController : MonoBehaviour
     #region UpdateFireBaseAndLocalCards
     IEnumerator UpdateFirebase()
     {
+        // Clear firebase lists
         firebaseHand.Clear();
         firebaseDiscardPile.Clear();
         firebaseDeck.Clear();
 
-        if(hand.Count == 0 || hand == null)
+        // Update hand list
+        yield return UpdateHandList();
+
+        // Update discard pile list
+        yield return UpdateDiscardPileList();
+
+        // Update deck list
+        yield return UpdateDeckList();
+
+        // Update gambit card
+        UpdateGambitCard();
+
+        // Wait for all setValueAsync operations to complete
+        yield return WaitForSetValueAsyncCompletion();
+    }
+
+    IEnumerator UpdateHandList()
+    {
+        if (hand.Count == 0 || hand == null)
         {
             firebaseHand.Add("");
         }
@@ -740,7 +766,11 @@ public class GameController : MonoBehaviour
             foreach (CardScriptableObject card in hand)
                 firebaseHand.Add(card.cardId);
         }
+        yield return null;
+    }
 
+    IEnumerator UpdateDiscardPileList()
+    {
         if (discardPile.Count == 0 || discardPile == null)
         {
             firebaseDiscardPile.Add("");
@@ -748,9 +778,13 @@ public class GameController : MonoBehaviour
         else
         {
             foreach (CardScriptableObject card in discardPile)
-            firebaseDiscardPile.Add(card.cardId);
+                firebaseDiscardPile.Add(card.cardId);
         }
+        yield return null;
+    }
 
+    IEnumerator UpdateDeckList()
+    {
         if (deck.Count == 0 || deck == null)
         {
             firebaseDeck.Add("");
@@ -758,19 +792,27 @@ public class GameController : MonoBehaviour
         else
         {
             foreach (CardScriptableObject card in deck)
-            firebaseDeck.Add(card.cardId);
+                firebaseDeck.Add(card.cardId);
         }
+        yield return null;  
+    }
 
+    void UpdateGambitCard()
+    {
         if (gambitCard != null)
             firebaseGambitCard = gambitCard.cardId;
-        else    
-            firebaseGambitCard = "";
+    }
+
+    IEnumerator WaitForSetValueAsyncCompletion()
+    {
         var setUserHand = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync(firebaseHand);
         var setServerDiscardPile = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("discardPile").SetValueAsync(firebaseDiscardPile);
         var setServerDeck = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("cardDeck").SetValueAsync(firebaseDeck);
         var setUserGambitCard = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("gambitCard").SetValueAsync(firebaseGambitCard);
-        yield return new WaitUntil(() => setServerDeck.IsCompleted && setServerDiscardPile.IsCompleted && setUserHand.IsCompleted && setUserGambitCard.IsCompleted);
-    } 
+
+        yield return new WaitUntil(() => setUserHand.IsCompleted && setServerDiscardPile.IsCompleted && setServerDeck.IsCompleted && setUserGambitCard.IsCompleted);
+    }
+
 
     private IEnumerator UpdateLocalDataFromFirebase()
     {
@@ -867,10 +909,6 @@ public class GameController : MonoBehaviour
                 }
                 gambitCard = null;
                 gambitCardsInPlay.Clear();
-                if(gambitCardsToDisplay != null) 
-                    gambitCardsToDisplay.Clear();
-                if(gambitCardsToDisplayPlayerIds != null)
-                    gambitCardsToDisplayPlayerIds.Clear();
             }
             currentGameState = (int)Gamestate.distributionOfCards;
         }
@@ -932,7 +970,7 @@ public class GameController : MonoBehaviour
     {
         if (!turnEndedEarly && currentGameState == (int)Gamestate.distributionOfCards)
         {
-            //いchatManager.AddDiscardMessageToChat($"Threw {selectedCardObjects.Count} Cards", DataSaver.instance.dts.userName);
+            chatManager.AddDiscardMessageToChat($"Threw {selectedCardObjects.Count} Cards", DataSaver.instance.dts.userName);
             foreach (GameObject selectedCardObject in selectedCardObjects)
             {
                 CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
@@ -954,7 +992,11 @@ public class GameController : MonoBehaviour
             turnEndedEarly = true;
             turnTimer = 0;
             turnTimerRef.SetValueAsync(0f);
-            Invoke(nameof(InvokeEndPlayerTurn), 0.5f); //1
+            Invoke(nameof(InvokeEndPlayerTurn), 0.5f);
+            if (gambitCardsToDisplay != null)
+                gambitCardsToDisplay.Clear();
+            if (gambitCardsToDisplayPlayerIds != null)
+                gambitCardsToDisplayPlayerIds.Clear();
         }
 
         else if (!turnEndedEarly && currentGameState == (int)Gamestate.gambit)
@@ -1347,9 +1389,15 @@ public class GameController : MonoBehaviour
             var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("score").SetValueAsync(updatedScore);
             yield return new WaitUntil(() => setPlayerScore.IsCompleted);
 
+            string username;
+            DatabaseReference userRef = DataSaver.instance.dbRef.Child("users").Child(winningPlayerId);
+            var fetchTask = userRef.Child("userName").GetValueAsync();
+            yield return new WaitUntil(() => fetchTask.IsCompleted);
+            username = fetchTask.Result.Value.ToString();
+
+            chatManager.AddScoreMessageToChat($"Got {highestScore} points for ", username, highestScore, false);
             if (setPlayerScore.Exception != null)
             {
-                //いStartCoroutine(chatManager.AddScoreMessageToChat($"Got {highestScore} points for ", winningPlayerId, highestScore, false));
                 Debug.LogError("Error updating player score in Firebase.");
                 yield break;
             }
@@ -1414,7 +1462,7 @@ public class GameController : MonoBehaviour
                 }
                 else if (totalHandValue == highestTotalHandValue)
                 {
-                    //いchatManager.AddMessageToChat("players have the same value hand, no one gets score");
+                    chatManager.AddMessageToChat("players have the same value hand, no one gets score");
                     Debug.LogError("Both players have the same value hand, no one gets score");
                     yield break;
                 }
@@ -1444,7 +1492,15 @@ public class GameController : MonoBehaviour
 
                 var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(winningPlayerId).Child("userGameData").Child("score").SetValueAsync(updatedScore);
                 yield return new WaitUntil(() => setPlayerScore.IsCompleted);
-                //いStartCoroutine(chatManager.AddScoreMessageToChat($"Got {highestScore} points for ", winningPlayerId, highestScore, false));
+
+                string username;
+                DatabaseReference userRef = DataSaver.instance.dbRef.Child("users").Child(winningPlayerId);
+                var fetchTask = userRef.Child("userName").GetValueAsync();
+                yield return new WaitUntil(() => fetchTask.IsCompleted);
+                username = fetchTask.Result.Value.ToString();
+
+                chatManager.AddScoreMessageToChat($"Got {highestScore} points for ", username, highestScore, false);
+
                 if (setPlayerScore.Exception != null)
                 {
                     Debug.LogError("Error updating player score in Firebase.");
