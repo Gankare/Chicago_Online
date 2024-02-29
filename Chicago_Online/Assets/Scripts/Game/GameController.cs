@@ -1264,30 +1264,25 @@ public class GameController : MonoBehaviour
     {
         cardNumbers.Sort();
 
+        int consecutiveCount = 1;
+
         // Check for a straight (five consecutive cards)
         for (int i = 1; i < cardNumbers.Count; i++)
         {
-            // Special case for Ace being considered high
-            if (cardNumbers[i] == CardScriptableObject.CardHierarchy.Ace && cardNumbers[0] == CardScriptableObject.CardHierarchy.ten)
+            if (cardNumbers[i] == cardNumbers[i - 1] + 1)
             {
-                for (int j = 0; j < cardNumbers.Count - 1; j++)
+                consecutiveCount++;
+                if (consecutiveCount == 5)
                 {
-                    if (cardNumbers[j] != cardNumbers[j + 1] - 1)
-                    {
-                        return false; 
-                    }
+                    return true;
                 }
-                return true; 
             }
-            else // Regular straight check
+            else 
             {
-                if (cardNumbers[i] - cardNumbers[i - 1] != 1)
-                {
-                    return false; 
-                }
+                consecutiveCount = 1;
             }
         }
-        return true;
+        return false;
     }
 
 
@@ -1626,6 +1621,8 @@ public class GameController : MonoBehaviour
             {
                 Debug.LogError("Error deleting server node: " + deletingServer.Exception);
             }
+            DataSaver.instance.dts.matchesWon++;
+            DataSaver.instance.SaveData();
         }
         else //Loser
         {
