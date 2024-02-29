@@ -5,13 +5,14 @@ using Firebase;
 using Firebase.Database;
 using TMPro;
 using Unity.VisualScripting;
-using UnityEngine.SocialPlatforms;
+
 
 public class ChatManager : MonoBehaviour
 {
     private string serverId;
-    private int maxMessages = 7;
+    private int maxMessages = 5;
     public TMP_Text chatText;
+    private Color playerUsernameColor = new Color(0.67f, 1, 0.57f);
     public enum ScoreHierarchy
     {
         onePair	= 1,
@@ -92,9 +93,11 @@ public class ChatManager : MonoBehaviour
     void DisplayMessages(List<string> messages)
     {
         chatText.text = "";
+
         foreach (string message in messages)
         {
-            chatText.text += message + "\n";
+            string coloredMessage = message.Replace(DataSaver.instance.dts.userName.ToString(), $"<color=#{UnityEngine.ColorUtility.ToHtmlStringRGB(playerUsernameColor)}>{DataSaver.instance.dts.userName}</color>");
+            chatText.text += coloredMessage + "\n";
         }
     }
 

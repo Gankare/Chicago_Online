@@ -336,13 +336,19 @@ public class GameController : MonoBehaviour
     {
         turnTimer = turnDuration;
         float startTime = Time.time;
+        int previousTurnTimer = Mathf.RoundToInt(turnTimer);
 
         if (currentGameState == (int)Gamestate.distributionOfCards)
         {
             while (Time.time - startTime <= turnDuration && !turnEndedEarly)
             {
                 turnTimer = turnDuration - (Time.time - startTime);
-                turnTimerRef.SetValueAsync(turnTimer);
+                int currentTurnTimer = Mathf.RoundToInt(turnTimer); 
+                if (currentTurnTimer != previousTurnTimer) 
+                {
+                    turnTimerRef.SetValueAsync(currentTurnTimer); 
+                    previousTurnTimer = currentTurnTimer; 
+                }
                 yield return null;
             }
 
@@ -352,13 +358,17 @@ public class GameController : MonoBehaviour
                 yield break;
             }
         }
-
         else if (currentGameState == (int)Gamestate.gambit)
         {
             while (Time.time - startTime <= turnDuration && !turnEndedEarly)
             {
                 turnTimer = turnDuration - (Time.time - startTime);
-                turnTimerRef.SetValueAsync(turnTimer);
+                int currentTurnTimer = Mathf.RoundToInt(turnTimer); 
+                if (currentTurnTimer != previousTurnTimer) 
+                {
+                    turnTimerRef.SetValueAsync(currentTurnTimer); 
+                    previousTurnTimer = currentTurnTimer; 
+                }
                 yield return null;
             }
 
@@ -509,7 +519,7 @@ public class GameController : MonoBehaviour
                         var fetchTask = userRef.Child("userName").GetValueAsync();
                         yield return new WaitUntil(() => fetchTask.IsCompleted);
                         username = fetchTask.Result.Value.ToString();
-                        chatManager.AddScoreMessageToChat($"Got {5} points for ", username, 5, true);
+                        chatManager.AddScoreMessageToChat($"{5} points ", username, 5, true);
 
                         StartCoroutine(DisplayScore());
                         if (updatedScore >= 52) //Player wins 
@@ -1426,7 +1436,7 @@ public class GameController : MonoBehaviour
             yield return new WaitUntil(() => fetchTask.IsCompleted);
             username = fetchTask.Result.Value.ToString();
 
-            chatManager.AddScoreMessageToChat($"Got {highestScore} points for ", username, highestScore, false);
+            chatManager.AddScoreMessageToChat($"{highestScore} points ", username, highestScore, false);
             if (setPlayerScore.Exception != null)
             {
                 Debug.LogError("Error updating player score in Firebase.");
@@ -1493,7 +1503,7 @@ public class GameController : MonoBehaviour
                 }
                 else if (totalHandValue == highestTotalHandValue)
                 {
-                    chatManager.AddMessageToChat("players have the same value hand, no one gets score");
+                    chatManager.AddMessageToChat("players have the same value hand, no score");
                     Debug.LogError("Both players have the same value hand, no one gets score");
                     yield break;
                 }
@@ -1530,7 +1540,7 @@ public class GameController : MonoBehaviour
                 yield return new WaitUntil(() => fetchTask.IsCompleted);
                 username = fetchTask.Result.Value.ToString();
 
-                chatManager.AddScoreMessageToChat($"Got {highestScore} points for ", username, highestScore, false);
+                chatManager.AddScoreMessageToChat($"{highestScore} points ", username, highestScore, false);
 
                 if (setPlayerScore.Exception != null)
                 {
@@ -1596,7 +1606,7 @@ public class GameController : MonoBehaviour
             playerScores[currentPlayer].text = $"{username}: {score}";
             if (playerId == DataSaver.instance.userId)
             {
-                playerScores[currentPlayer].color = Color.blue;
+                playerScores[currentPlayer].color = new Color(0.67f, 1, 0.57f);
             }
             currentPlayer++;
         }
