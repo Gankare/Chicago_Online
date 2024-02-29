@@ -946,7 +946,7 @@ public class GameController : MonoBehaviour
             foreach (DataSnapshot cardSnapshot in snapshot.Children)
             {
                 string cardId = cardSnapshot.Value.ToString();
-                CardScriptableObject card = GetCardFromId(cardId);
+                CardScriptableObject card = GetCardFromId(cardId); // Here in the start everytime
                 if (card != null)
                 {
                     list.Add(card);
