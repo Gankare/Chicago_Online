@@ -552,6 +552,16 @@ public class GameController : MonoBehaviour
             yield return null; 
         }
     }
+    IEnumerator ClearGambitDisplayCards()
+    {
+        gambitCardsToDisplay?.Clear();
+        yield return null;
+    }
+    IEnumerator ClearGambitDisplayIds()
+    {
+        gambitCardsToDisplayPlayerIds?.Clear();
+        yield return null;
+    }
     IEnumerator IsMyTurnCoroutine(System.Action<bool> callback)
     {
         var isTurnSnapshotTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("isTurn").GetValueAsync();
@@ -897,6 +907,8 @@ public class GameController : MonoBehaviour
         }
         else
         {
+            gambitCard = null;
+            gambitCardsInPlay.Clear();
             background.color = new Color(0.49f, 0.66f, 0.59f); //Original background color
             for (int i = 0; i < gambitSlots.Count; i++)
             {
@@ -907,10 +919,10 @@ public class GameController : MonoBehaviour
                         Destroy(gambitSlots[i].GetChild(childCard).gameObject);
                     }
                 }
-                gambitCard = null;
-                gambitCardsInPlay.Clear();
             }
             currentGameState = (int)Gamestate.distributionOfCards;
+            yield return StartCoroutine(ClearGambitDisplayCards());
+            yield return StartCoroutine(ClearGambitDisplayIds());
         }
     }
     IEnumerator PopulateListFromSnapshot(List<CardScriptableObject> list, DataSnapshot snapshot)
@@ -993,10 +1005,6 @@ public class GameController : MonoBehaviour
             turnTimer = 0;
             turnTimerRef.SetValueAsync(0f);
             Invoke(nameof(InvokeEndPlayerTurn), 0.5f);
-            if (gambitCardsToDisplay != null)
-                gambitCardsToDisplay.Clear();
-            if (gambitCardsToDisplayPlayerIds != null)
-                gambitCardsToDisplayPlayerIds.Clear();
         }
 
         else if (!turnEndedEarly && currentGameState == (int)Gamestate.gambit)
@@ -1249,20 +1257,34 @@ public class GameController : MonoBehaviour
 
     private bool CheckForStraight(List<CardScriptableObject.CardHierarchy> cardNumbers)
     {
-        // Sort the card numbers in ascending order
         cardNumbers.Sort();
 
         // Check for a straight (five consecutive cards)
         for (int i = 1; i < cardNumbers.Count; i++)
         {
-            if (cardNumbers[i] - cardNumbers[i - 1] != 1)
+            // Special case for Ace being considered high
+            if (cardNumbers[i] == CardScriptableObject.CardHierarchy.Ace && cardNumbers[0] == CardScriptableObject.CardHierarchy.ten)
             {
-                return false;
+                for (int j = 0; j < cardNumbers.Count - 1; j++)
+                {
+                    if (cardNumbers[j] != cardNumbers[j + 1] - 1)
+                    {
+                        return false; 
+                    }
+                }
+                return true; 
+            }
+            else // Regular straight check
+            {
+                if (cardNumbers[i] - cardNumbers[i - 1] != 1)
+                {
+                    return false; 
+                }
             }
         }
-
         return true;
     }
+
 
     private bool CheckForStraightFlush(List<CardScriptableObject.CardHierarchy> cardNumbers, Dictionary<CardScriptableObject.Suit, int> cardSuitCount)
     {
@@ -1592,13 +1614,13 @@ public class GameController : MonoBehaviour
             yield return new WaitUntil(() => addToUserWins.IsCompleted);
 
             //Deleting server
+            yield return new WaitForSeconds(5f);
             var deletingServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).RemoveValueAsync();
             yield return new WaitUntil(() => deletingServer.IsCompleted);
             if (deletingServer.Exception != null)
             {
                 Debug.LogError("Error deleting server node: " + deletingServer.Exception);
             }
-            yield return new WaitForSeconds(4.5f);
         }
         else //Loser
         {
