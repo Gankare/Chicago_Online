@@ -1629,8 +1629,8 @@ public class GameController : MonoBehaviour
             var addToUserWins = DataSaver.instance.dbRef.Child("users").Child(DataSaver.instance.userId).Child("matchesWon").SetValueAsync(newUserWins);
             yield return new WaitUntil(() => addToUserWins.IsCompleted);
             DataSaver.instance.dts.matchesWon++;
+            yield return new WaitForSeconds(4.5f);
             //Deleting server
-            yield return new WaitForSeconds(5f);
             var deletingServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).RemoveValueAsync();
             yield return new WaitUntil(() => deletingServer.IsCompleted);
             if (deletingServer.Exception != null)
@@ -1643,7 +1643,7 @@ public class GameController : MonoBehaviour
             loseScreen.SetActive(true);
             yield return new WaitForSeconds(5);
         }
-        serverId = "";
+        ServerManager.instance.serverId = null;
         SceneManager.LoadScene("ServerScene");
     }
     #endregion
