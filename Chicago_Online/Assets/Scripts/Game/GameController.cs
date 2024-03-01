@@ -13,7 +13,7 @@ using System;
 using System.Text.RegularExpressions;
 using UnityEngine.SceneManagement;
 using AYellowpaper.SerializedCollections;
-using System.Threading.Tasks;
+
 
 public class GameController : MonoBehaviour
 {
@@ -62,7 +62,6 @@ public class GameController : MonoBehaviour
     private Regex numberRegex = new (@"(two|three|four|five|six|seven|eight|nine|ten|Jack|Queen|King|Ace)");
     private bool gameOver;
     private bool firstGambitCard;
-    private bool firstRound = false;
 
     private void Awake()
     {
@@ -149,13 +148,10 @@ public class GameController : MonoBehaviour
             yield return StartCoroutine(ClearGambitDisplayCards());
         if (gambitCardsToDisplayPlayerIds != null && currentGameState == (int)Gamestate.distributionOfCards)
             yield return StartCoroutine(ClearGambitDisplayIds());
-        if(!firstRound)
+
+        if(currentGameState == (int)Gamestate.gambit)
             yield return new WaitForSeconds(1);
-        else
-        {
-            yield return new WaitForSeconds(3);
-            firstRound = false;
-        }
+
         StartCoroutine(StartNextRound());
     }
     private void CheckGameOverStatus(object sender, ValueChangedEventArgs args)
@@ -239,24 +235,22 @@ public class GameController : MonoBehaviour
                     if (id != DataSaver.instance.userId)
                         playerIdsForSlot.Add(id);
                 }
-                    var setPlayerHandNull = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("hand").SetValueAsync("");
                     var setPlayerGambitCardNull = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("gambitCard").SetValueAsync("");
                     var setTurnFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("isTurn").SetValueAsync(false);
                     var setPlayerScore = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("score").SetValueAsync(0);
                     var setUserHandValue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(DataSaver.instance.userId).Child("userGameData").Child("handValue").SetValueAsync(0);
-                    yield return new WaitUntil(() => setPlayerHandNull.IsCompleted && setPlayerGambitCardNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted && setPlayerScore.IsCompleted);
+                    yield return new WaitUntil(() => setPlayerGambitCardNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted && setPlayerScore.IsCompleted);
 
+                yield return StartCoroutine(DisplayScore());
                 string currentPlayerId = playerIds[playerIndex];
+                chatManager.AddMessageToChat($"{playerIds.Count} Players connected");
+                ListenForPlayerTurn();
+                ListenForGambitCards();
                 if (currentPlayerId == DataSaver.instance.userId)
                 {
-                    firstRound = true;
                     var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
                     yield return new WaitUntil(() => setTurnTrue.IsCompleted);
                 }
-                chatManager.AddMessageToChat($"{playerIds.Count} Players connected");
-                ListenForPlayerTurn();
-                yield return StartCoroutine(DisplayScore());
-                ListenForGambitCards();
             }
         }
     }
@@ -1079,6 +1073,11 @@ public class GameController : MonoBehaviour
     private CardScriptableObject GetCardFromId(string cardId)
     {
         // Iterate through all card objects to find the one with the matching cardId
+        if (string.IsNullOrEmpty(cardId)) 
+        {
+            Debug.LogWarning("getcardfromid got an empty cardid string"); 
+            return null;
+        }
         foreach (CardScriptableObject card in allCards)
         {
             if (card.cardId == cardId)
