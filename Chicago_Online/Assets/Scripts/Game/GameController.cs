@@ -52,9 +52,7 @@ public class GameController : MonoBehaviour
     public Sprite backOfCardSprite;
     public string gambitSuit;
     public Image background;
-    public AudioClip cardPickUp;
-    public AudioClip cardThrow;
-    private AudioSource audioSource;
+    public AudioSource audioSource;
     private float turnTimer = 0f; 
     private float turnDuration = 20f; 
     private string serverId;
@@ -69,11 +67,14 @@ public class GameController : MonoBehaviour
     private void Awake()
     {
         serverId = ServerManager.instance.serverId;
-        audioSource = gameObject.GetComponent<AudioSource>();
     }
 
     #region StartGame
     private void Start()
+    {
+        Invoke(nameof(StartAfterWhile), 1);
+    }
+    public void StartAfterWhile()
     {
         StartCoroutine(SetStartDeck());
     }
@@ -149,7 +150,7 @@ public class GameController : MonoBehaviour
             yield return StartCoroutine(ClearGambitDisplayCards());
         if (gambitCardsToDisplayPlayerIds != null && currentGameState == (int)Gamestate.distributionOfCards)
             yield return StartCoroutine(ClearGambitDisplayIds());
-            yield return new WaitForSeconds(2);
+            yield return new WaitForSeconds(1);
 
         StartCoroutine(StartNextRound());
     }
@@ -683,12 +684,12 @@ public class GameController : MonoBehaviour
             }
             if (!cardAlreadyDisplayed)
             {
+                audioSource.PlayOneShot(audioSource.clip);
                 var currentCard = Instantiate(card, handSlot);
                 currentCard.GetComponent<Image>().sprite = slot.cardSprite;
                 currentCard.GetComponent<CardInfo>().power = slot.power;
                 currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
                 userHandObjects.Add(currentCard);
-                audioSource.PlayOneShot(cardPickUp);
                 yield return new WaitForSeconds(0.5f);
             }
         }
@@ -734,6 +735,7 @@ public class GameController : MonoBehaviour
                     // If the card is not already displayed, instantiate it
                     if (!cardAlreadyDisplayed)
                     {
+                        audioSource.PlayOneShot(audioSource.clip);
                         var currentCard = Instantiate(card, gambitSlots[i]);
                         if (cardToDisplay.cardId.Contains(gambitSuit) || gambitSuit == string.Empty)
                             currentCard.GetComponent<Image>().sprite = cardToDisplay.cardSprite;
@@ -743,7 +745,6 @@ public class GameController : MonoBehaviour
                         currentCard.GetComponent<CardInfo>().cardId = cardToDisplay.cardId;
                         currentCard.GetComponent<Button>().enabled = false;
                         currentCard.transform.position = new Vector2(currentCard.transform.position.x + xOffset, currentCard.transform.position.y);
-                        audioSource.PlayOneShot(cardPickUp);
                     }
                 }
             }
@@ -995,26 +996,23 @@ public class GameController : MonoBehaviour
         if (!turnEndedEarly && currentGameState == (int)Gamestate.distributionOfCards)
         {
             chatManager.AddDiscardMessageToChat($"Threw {selectedCardObjects.Count} Cards", DataSaver.instance.dts.userName);
-            if (selectedCardObjects != null)
-            {
-                foreach (GameObject selectedCardObject in selectedCardObjects)
-                {
-                    CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
-                    CardScriptableObject cardToRemove = GetCardFromId(cardInfo.cardId);
 
-                    if (cardToRemove != null)
-                    {
-                        userHandObjects.Remove(selectedCardObject);
-                        hand.Remove(cardToRemove);
-                        discardPile.Add(cardToRemove);
-                        Destroy(selectedCardObject);
-                    }
-                    else
-                    {
-                        Debug.LogError("Failed to find card with ID: " + cardInfo.cardId);
-                    }
+            foreach (GameObject selectedCardObject in selectedCardObjects)
+            {
+                CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
+                CardScriptableObject cardToRemove = GetCardFromId(cardInfo.cardId);
+
+                if (cardToRemove != null)
+                {
+                    userHandObjects.Remove(selectedCardObject);
+                    hand.Remove(cardToRemove);
+                    discardPile.Add(cardToRemove);
+                    Destroy(selectedCardObject);
                 }
-                audioSource.PlayOneShot(cardThrow);
+                else
+                {
+                    Debug.LogError("Failed to find card with ID: " + cardInfo.cardId);
+                }
             }
             selectedCardObjects.Clear();
             turnEndedEarly = true;
