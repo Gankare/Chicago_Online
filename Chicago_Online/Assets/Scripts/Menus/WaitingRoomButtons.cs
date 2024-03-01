@@ -7,7 +7,6 @@ using UnityEngine.UI;
 using TMPro;
 using Firebase.Extensions;
 using UnityEngine.SceneManagement;
-using System;
 
 public class WaitingRoomButtons : MonoBehaviour
 {
@@ -18,18 +17,41 @@ public class WaitingRoomButtons : MonoBehaviour
     public List<Image> readyCards;
     public GameObject buttons;
     public bool countDownActive = false;
-    private string previousUserData;
     private Dictionary<string, bool> previousReadyValues = new();
-    private bool updating = false;
     private int currentAmountOfPlayers;
 
     private void Start()
     {
-        StartCoroutine(InitializePreviousUserData());
+        StartCoroutine(InitializePreviousReadyValues());
     }
 
-    private IEnumerator InitializePreviousUserData()
+    private IEnumerator InitializePreviousReadyValues()
     {
+        var getGameStartedTask = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("gameHasStarted").GetValueAsync();
+
+        yield return new WaitUntil(() => getGameStartedTask.IsCompleted);
+
+        if (getGameStartedTask.Exception != null)
+        {
+            Debug.LogError($"Error fetching gameHasStarted data: {getGameStartedTask.Exception}");
+            yield break;
+        }
+
+        DataSnapshot gameStartedSnapshot = getGameStartedTask.Result;
+
+        if (!gameStartedSnapshot.Exists || gameStartedSnapshot.Value == null)
+        {
+            var setGameStartedTask = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("gameHasStarted").SetValueAsync(false);
+
+            yield return new WaitUntil(() => setGameStartedTask.IsCompleted);
+
+            if (setGameStartedTask.Exception != null)
+            {
+                Debug.LogError($"Error setting gameHasStarted data: {setGameStartedTask.Exception}");
+                yield break;
+            }
+        }
+
         var playersInServerTask = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => playersInServerTask.IsCompleted);
 
@@ -43,10 +65,8 @@ public class WaitingRoomButtons : MonoBehaviour
         foreach (var playerSnapshot in playersSnapshot.Children)
         {
             var userId = playerSnapshot.Key;
-            var userDataSnapshot = playerSnapshot.Child("userData");
-
-            bool readyValue = userDataSnapshot.Child("ready").Exists ? (bool)userDataSnapshot.Child("ready").Value : false;
-            previousUserData += $"{userId}:{readyValue};";
+            var readyValue = playerSnapshot.Child("userData").Child("ready").Exists ? (bool)playerSnapshot.Child("userData").Child("ready").Value : false;
+            previousReadyValues.Add(userId, readyValue);
         }
         SubscribeToDatabaseEvents();
         StartCoroutine(InitLoadPlayers());
@@ -57,110 +77,53 @@ public class WaitingRoomButtons : MonoBehaviour
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded += HandlePlayerAdded;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved += HandlePlayerRemoved;
         DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged += HandlePlayerChanged;
-        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("gameHasStarted").ChildChanged += HandleGameStarted;
-        SceneManager.sceneLoaded += OnSceneLoaded;
     }
-    void RemovePlayerChangedListener()
+
+    public void Ready()
     {
-        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded -= HandlePlayerAdded;
-        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved -= HandlePlayerRemoved;
-        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged -= HandlePlayerChanged;
-        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("gameHasStarted").ChildChanged -= HandleGameStarted;
-        SceneManager.sceneLoaded -= OnSceneLoaded;
+        StartCoroutine(ServerManager.instance.PlayerReadyStatus(DataSaver.instance.userId, true));
+    }
+    public void Unready()
+    {
+        StartCoroutine(ServerManager.instance.PlayerReadyStatus(DataSaver.instance.userId, false));
     }
 
     private void OnDisable()
     {
-        RemovePlayerChangedListener();
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded -= HandlePlayerAdded;
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved -= HandlePlayerRemoved;
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged -= HandlePlayerChanged;
     }
 
     private void OnDestroy()
     {
-        RemovePlayerChangedListener();
-    }
-
-    IEnumerator InitLoadPlayers()
-    {
-        yield return new WaitForSeconds(1);
-        StartCoroutine(UpdatePlayers());
-    }
-
-    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        if (scene.name == "MenuScene" || scene.name == "ServerScene")
-        {
-            Destroy(gameObject);
-        }
-    }
-
-    void HandleGameStarted(object sender, ChildChangedEventArgs args)
-    {
-        var gameHasStartedRef = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("gameHasStarted");
-
-        var gameHasStartedTask = gameHasStartedRef.GetValueAsync();
-        gameHasStartedTask.ContinueWith(task =>
-        {
-            if (task.IsCompleted && !task.IsFaulted)
-            {
-                DataSnapshot snapshot = task.Result;
-                bool gameHasStarted = snapshot != null && snapshot.Exists && (bool)snapshot.Value;
-
-                if (gameHasStarted)
-                {
-                    if (this != null)
-                        StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());
-                }
-                else
-                    Debug.Log("Game not started yet");
-            }
-            else
-            {
-                Debug.LogError($"Error fetching gameHasStarted data: {task.Exception}");
-            }
-        });
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildAdded -= HandlePlayerAdded;
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildRemoved -= HandlePlayerRemoved;
+        DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").ChildChanged -= HandlePlayerChanged;
     }
 
     void HandlePlayerAdded(object sender, ChildChangedEventArgs args)
     {
         StartCoroutine(UpdatePlayers());
-        countDownActive = false;
     }
 
     void HandlePlayerRemoved(object sender, ChildChangedEventArgs args)
     {
-        if (this == null)
-            return;
         StartCoroutine(UpdatePlayers());
-            countDownActive = false;
     }
 
     void HandlePlayerChanged(object sender, ChildChangedEventArgs args)
     {
-        if (this == null)
-            return;
         var currentUserId = args.Snapshot.Key;
-        var currentUserData = args.Snapshot.Child("userData").GetRawJsonValue();
-        var currentReadyNode = args.Snapshot.Child("userData").Child("ready");
-        var currentReadyValue = currentReadyNode.Exists ? (bool)currentReadyNode.Value : false;
+        var currentReadyValue = args.Snapshot.Child("userData").Child("ready").Exists ? (bool)args.Snapshot.Child("userData").Child("ready").Value : false;
 
         // Check if the "ready" field has changed
-        if (HasReadyStatusChanged(currentUserId, currentReadyValue))
+        if (HasReadyStatusChanged(currentUserId, currentReadyValue) && this != null)
         {
             // Trigger the update method for any changes in ready status
-            if (this != null)
-            {
-                StartCoroutine(UpdatePlayers());
-                StartCoroutine(ServerManager.instance.CheckAllPlayersReady());
-            }
+            StartCoroutine(UpdatePlayers());
+            StartCoroutine(ServerManager.instance.CheckAllPlayersReady());
         }
-        else if (AreJsonFieldsChanged(currentUserData, previousUserData, "lastActivity"))
-        {
-            // Skip the update if only lastActivity has changed
-            return;
-        }
-
-        // Update the previousUserData after handling changes
-        previousUserData = currentUserData;
     }
 
     bool HasReadyStatusChanged(string userId, bool currentReadyValue)
@@ -181,77 +144,26 @@ public class WaitingRoomButtons : MonoBehaviour
             previousReadyValues.Add(userId, currentReadyValue);
         }
 
+        // Check if any player has readied up
+        foreach (var readyValue in previousReadyValues.Values)
+        {
+            if (readyValue)
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
-    bool AreJsonFieldsChanged(string json1, string json2, params string[] excludedFields)
+    IEnumerator InitLoadPlayers()
     {
-        // Check if the JSON strings are equal
-        if (json1 == json2) return false;
-
-        // Remove the fields to be excluded from the comparison
-        foreach (var excludedField in excludedFields)
-        {
-            json1 = RemoveJsonField(json1, excludedField);
-            json2 = RemoveJsonField(json2, excludedField);
-        }
-
-        // If the JSON strings are equal after removing excluded fields, return false
-        if (json1 == json2) return false;
-
-        return true;
-    }
-
-    string RemoveJsonField(string json, string fieldToRemove)
-    {
-        if (json == null)
-        {
-            // Return an empty string if JSON is null
-            return string.Empty;
-        }
-
-        int fieldIndex = json.IndexOf(fieldToRemove);
-        if (fieldIndex >= 0)
-        {
-            int colonIndex = json.IndexOf(":", fieldIndex);
-            int commaIndex = json.IndexOf(",", colonIndex);
-            if (commaIndex < 0)
-            {
-                // Last field, remove until end of string
-                json = json.Remove(fieldIndex - 1);
-            }
-            else
-            {
-                // Middle field, remove until next comma
-                json = json.Remove(fieldIndex - 1, commaIndex - fieldIndex + 2);
-            }
-        }
-        return json;
-    }
-
-    [Serializable]
-    public class UserData
-    {
-        public bool ready;
-    }
-
-    public void Ready()
-    {
-        StartCoroutine(ServerManager.instance.PlayerReadyStatus(DataSaver.instance.userId, true));
-    }
-    public void Unready()
-    {
-        StartCoroutine(ServerManager.instance.PlayerReadyStatus(DataSaver.instance.userId, false));
+        yield return new WaitForSeconds(1);
+        StartCoroutine(UpdatePlayers());
     }
 
     IEnumerator UpdatePlayers()
     {
-        if (updating)
-        {
-            yield break;
-        }
-        updating = true;
-        //Reset values
         int players = 0;
         int playersReady = 0;
 
@@ -262,13 +174,6 @@ public class WaitingRoomButtons : MonoBehaviour
 
         var playersInServer = DataSaver.instance.dbRef.Child("servers").Child(ServerManager.instance.serverId).Child("players").GetValueAsync();
         yield return new WaitUntil(() => playersInServer.IsCompleted);
-
-        if (playersInServer.Exception != null)
-        {
-            Debug.LogError($"Error getting players data: {playersInServer.Exception}");
-            updating = false;
-            yield break;
-        }
 
         DataSnapshot playersSnapshot = playersInServer.Result;
 
@@ -282,7 +187,7 @@ public class WaitingRoomButtons : MonoBehaviour
                 var isPlayerReady = requestSnapshot.Child("userData").Child("ready").Value;
                 if (isPlayerReady != null)
                 {
-                    bool readyValue = bool.Parse(isPlayerReady.ToString());
+                    bool readyValue = (bool)isPlayerReady;
                     if (readyValue)
                     {
                         playersReady++;
@@ -296,13 +201,10 @@ public class WaitingRoomButtons : MonoBehaviour
                 var usernameTask = DataSaver.instance.dbRef.Child("users").Child(userId).Child("userName").GetValueAsync();
                 yield return new WaitUntil(() => usernameTask.IsCompleted);
 
-                if (usernameTask.Exception == null)
+                DataSnapshot usernameSnapshot = usernameTask.Result;
+                if (usernameSnapshot.Exists)
                 {
-                    DataSnapshot usernameSnapshot = usernameTask.Result;
-                    if (usernameSnapshot.Exists)
-                    {
-                        playerNames[players].text = usernameSnapshot.Value.ToString();
-                    }
+                    playerNames[players].text = usernameSnapshot.Value.ToString();
                 }
 
                 if (requestSnapshot.Key == DataSaver.instance.userId)
@@ -315,13 +217,13 @@ public class WaitingRoomButtons : MonoBehaviour
         }
         currentAmountOfPlayers = players;
         amountOfPlayersText.text = $"{playersReady}/{players} players ready";
-        updating = false;
     }
 
     public void LeaveServer()
     {
         SceneManager.LoadScene("ServerScene");
     }
+
     public IEnumerator CountDownBeforeStart()
     {
         countDownActive = true;
@@ -387,7 +289,7 @@ public class WaitingRoomButtons : MonoBehaviour
                     break;
                 }
 
-                if (i == 0 && countDownActive)
+                if (i == 0 && countDownActive && this != null)
                 {
 
                     yield return StartCoroutine(ServerManager.instance.SetGameStartedFlagCoroutine());

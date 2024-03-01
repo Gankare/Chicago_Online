@@ -846,7 +846,7 @@ GameObject:
   m_Component:
   - component: {fileID: 285294206}
   - component: {fileID: 285294207}
-  - component: {fileID: 285294208}
+  - component: {fileID: 285294209}
   m_Layer: 0
   m_Name: DataSaver
   m_TagString: Untagged
@@ -888,7 +888,7 @@ MonoBehaviour:
     friendRequests: []
   userId: 
   nameExists: 0
---- !u!82 &285294208
+--- !u!82 &285294209
 AudioSource:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -906,7 +906,7 @@ AudioSource:
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0
-  Priority: 256
+  Priority: 128
   DopplerLevel: 1
   MinDistance: 1
   MaxDistance: 500

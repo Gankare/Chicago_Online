@@ -144,7 +144,7 @@ public class ServerManager : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
 
-        if (DataSaver.instance.dbRef != null)
+        if (DataSaver.instance.dbRef != null && userId != null)
         {
             var setCountdownStartFlagTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("countdownStartFlag").SetValueAsync(false);
             var connectUser = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("connected").SetValueAsync(isConnected);
@@ -174,7 +174,7 @@ public class ServerManager : MonoBehaviour
             var setUserReady = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(userId).Child("userData").Child("ready").SetValueAsync(isReady);
             yield return new WaitUntil(() => setUserReady.IsCompleted);
 
-            if (!isReady)
+            if (!isReady && userId != null)
             {
                 // Clear the countdown start flag if any player becomes unready
                 var countdownStartFlagTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("countdownStartFlag").SetValueAsync(false);

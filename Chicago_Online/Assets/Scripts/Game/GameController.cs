@@ -52,6 +52,7 @@ public class GameController : MonoBehaviour
     public Sprite backOfCardSprite;
     public string gambitSuit;
     public Image background;
+    public AudioSource cardAudioSource;
     private float turnTimer = 0f; 
     private float turnDuration = 20f; 
     private string serverId;
@@ -145,7 +146,7 @@ public class GameController : MonoBehaviour
             yield return StartCoroutine(ClearGambitDisplayCards());
         if (gambitCardsToDisplayPlayerIds != null && currentGameState == (int)Gamestate.distributionOfCards)
             yield return StartCoroutine(ClearGambitDisplayIds());
-            yield return new WaitForSeconds(1);
+            yield return new WaitForSeconds(2);
 
         StartCoroutine(StartNextRound());
     }
@@ -238,9 +239,9 @@ public class GameController : MonoBehaviour
                     yield return new WaitUntil(() => setPlayerGambitCardNull.IsCompleted && setTurnFalse.IsCompleted && setUserHandValue.IsCompleted && setPlayerScore.IsCompleted);
 
                 string currentPlayerId = playerIds[playerIndex];
-                chatManager.AddMessageToChat($"{playerIds.Count} Players connected");
                 if (currentPlayerId == DataSaver.instance.userId)
                 {
+                    chatManager.AddMessageToChat($"{playerIds.Count} Players connected");
                     var setTurnTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
                     yield return new WaitUntil(() => setTurnTrue.IsCompleted);
                 }
@@ -684,6 +685,7 @@ public class GameController : MonoBehaviour
                 currentCard.GetComponent<CardInfo>().power = slot.power;
                 currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
                 userHandObjects.Add(currentCard);
+                cardAudioSource.PlayOneShot(cardAudioSource.clip);
                 yield return new WaitForSeconds(0.5f);
             }
         }
@@ -738,6 +740,7 @@ public class GameController : MonoBehaviour
                         currentCard.GetComponent<CardInfo>().cardId = cardToDisplay.cardId;
                         currentCard.GetComponent<Button>().enabled = false;
                         currentCard.transform.position = new Vector2(currentCard.transform.position.x + xOffset, currentCard.transform.position.y);
+                        cardAudioSource.PlayOneShot(cardAudioSource.clip);
                     }
                 }
             }
@@ -1440,7 +1443,7 @@ public class GameController : MonoBehaviour
                 yield break;
             }
             yield return StartCoroutine(DisplayScore());
-            if (updatedScore >= 52) //Player wins 
+            if (updatedScore >= 2) //Player wins 
             {
                 var setGameOverTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").SetValueAsync(true);
                 yield return new WaitUntil(() => setGameOverTrue.IsCompleted);
@@ -1615,7 +1618,7 @@ public class GameController : MonoBehaviour
         yield return new WaitUntil(() => scoreString.IsCompleted);
 
         int userScore = int.Parse(scoreString.Result.Value.ToString());
-        if (userScore >= 52) //Winner
+        if (userScore >= 2) //Winner
         {
             winScreen.SetActive(true);
             //Adding a win to winners profile
@@ -1629,7 +1632,7 @@ public class GameController : MonoBehaviour
             var addToUserWins = DataSaver.instance.dbRef.Child("users").Child(DataSaver.instance.userId).Child("matchesWon").SetValueAsync(newUserWins);
             yield return new WaitUntil(() => addToUserWins.IsCompleted);
             DataSaver.instance.dts.matchesWon++;
-            yield return new WaitForSeconds(4.5f);
+            yield return new WaitForSeconds(5f);
             //Deleting server
             var deletingServer = DataSaver.instance.dbRef.Child("servers").Child(serverId).RemoveValueAsync();
             yield return new WaitUntil(() => deletingServer.IsCompleted);
@@ -1643,7 +1646,7 @@ public class GameController : MonoBehaviour
             loseScreen.SetActive(true);
             yield return new WaitForSeconds(5);
         }
-        ServerManager.instance.serverId = null;
+        Destroy(ServerManager.instance.gameObject);
         SceneManager.LoadScene("ServerScene");
     }
     #endregion
