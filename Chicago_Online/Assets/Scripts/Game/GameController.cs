@@ -52,7 +52,9 @@ public class GameController : MonoBehaviour
     public Sprite backOfCardSprite;
     public string gambitSuit;
     public Image background;
-    public AudioSource cardAudioSource;
+    public AudioClip cardPickUp;
+    public AudioClip cardThrow;
+    private AudioSource audioSource;
     private float turnTimer = 0f; 
     private float turnDuration = 20f; 
     private string serverId;
@@ -67,6 +69,7 @@ public class GameController : MonoBehaviour
     private void Awake()
     {
         serverId = ServerManager.instance.serverId;
+        audioSource = gameObject.GetComponent<AudioSource>();
     }
 
     #region StartGame
@@ -685,7 +688,7 @@ public class GameController : MonoBehaviour
                 currentCard.GetComponent<CardInfo>().power = slot.power;
                 currentCard.GetComponent<CardInfo>().cardId = slot.cardId;
                 userHandObjects.Add(currentCard);
-                cardAudioSource.PlayOneShot(cardAudioSource.clip);
+                audioSource.PlayOneShot(cardPickUp);
                 yield return new WaitForSeconds(0.5f);
             }
         }
@@ -740,7 +743,7 @@ public class GameController : MonoBehaviour
                         currentCard.GetComponent<CardInfo>().cardId = cardToDisplay.cardId;
                         currentCard.GetComponent<Button>().enabled = false;
                         currentCard.transform.position = new Vector2(currentCard.transform.position.x + xOffset, currentCard.transform.position.y);
-                        cardAudioSource.PlayOneShot(cardAudioSource.clip);
+                        audioSource.PlayOneShot(cardPickUp);
                     }
                 }
             }
@@ -992,22 +995,26 @@ public class GameController : MonoBehaviour
         if (!turnEndedEarly && currentGameState == (int)Gamestate.distributionOfCards)
         {
             chatManager.AddDiscardMessageToChat($"Threw {selectedCardObjects.Count} Cards", DataSaver.instance.dts.userName);
-            foreach (GameObject selectedCardObject in selectedCardObjects)
+            if (selectedCardObjects != null)
             {
-                CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
-                CardScriptableObject cardToRemove = GetCardFromId(cardInfo.cardId);
+                foreach (GameObject selectedCardObject in selectedCardObjects)
+                {
+                    CardInfo cardInfo = selectedCardObject.GetComponent<CardInfo>();
+                    CardScriptableObject cardToRemove = GetCardFromId(cardInfo.cardId);
 
-                if (cardToRemove != null)
-                {
-                    userHandObjects.Remove(selectedCardObject);
-                    hand.Remove(cardToRemove);
-                    discardPile.Add(cardToRemove);
-                    Destroy(selectedCardObject);
+                    if (cardToRemove != null)
+                    {
+                        userHandObjects.Remove(selectedCardObject);
+                        hand.Remove(cardToRemove);
+                        discardPile.Add(cardToRemove);
+                        Destroy(selectedCardObject);
+                    }
+                    else
+                    {
+                        Debug.LogError("Failed to find card with ID: " + cardInfo.cardId);
+                    }
                 }
-                else
-                {
-                    Debug.LogError("Failed to find card with ID: " + cardInfo.cardId);
-                }
+                audioSource.PlayOneShot(cardThrow);
             }
             selectedCardObjects.Clear();
             turnEndedEarly = true;
@@ -1443,7 +1450,7 @@ public class GameController : MonoBehaviour
                 yield break;
             }
             yield return StartCoroutine(DisplayScore());
-            if (updatedScore >= 2) //Player wins 
+            if (updatedScore >= 52) //Player wins 
             {
                 var setGameOverTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").SetValueAsync(true);
                 yield return new WaitUntil(() => setGameOverTrue.IsCompleted);
@@ -1618,7 +1625,7 @@ public class GameController : MonoBehaviour
         yield return new WaitUntil(() => scoreString.IsCompleted);
 
         int userScore = int.Parse(scoreString.Result.Value.ToString());
-        if (userScore >= 2) //Winner
+        if (userScore >= 52) //Winner
         {
             winScreen.SetActive(true);
             //Adding a win to winners profile
