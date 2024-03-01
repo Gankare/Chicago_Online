@@ -836,7 +836,8 @@ MonoBehaviour:
   backOfCardSprite: {fileID: 487652763, guid: 0afc290f2fe603840b0c9328f1220a4e, type: 3}
   gambitSuit: 
   background: {fileID: 1546590337}
-  cardAudioSource: {fileID: 614527951}
+  cardPickUp: {fileID: 8300000, guid: 4e574ff9268dd474995472cbf3dd57ba, type: 3}
+  cardThrow: {fileID: 8300000, guid: f1cbecc805e97ea4ea64ece4eb4296a1, type: 3}
 --- !u!114 &614527950
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -860,7 +861,7 @@ AudioSource:
   m_Enabled: 1
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
-  m_audioClip: {fileID: 8300000, guid: 4e574ff9268dd474995472cbf3dd57ba, type: 3}
+  m_audioClip: {fileID: 0}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
