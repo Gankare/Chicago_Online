@@ -151,8 +151,7 @@ public class GameController : MonoBehaviour
             yield return StartCoroutine(ClearGambitDisplayCards());
         if (gambitCardsToDisplayPlayerIds != null && currentGameState == (int)Gamestate.distributionOfCards)
             yield return StartCoroutine(ClearGambitDisplayIds());
-            yield return new WaitForSeconds(0.5f);
-
+            yield return new WaitForSeconds(1f);
         StartCoroutine(StartNextRound());
     }
     private void CheckGameOverStatus(object sender, ValueChangedEventArgs args)
@@ -447,7 +446,7 @@ public class GameController : MonoBehaviour
 
                     var setScoreRound = gameDataRef.Child("scoreGameRound").SetValueAsync(newScoreRoundValue);
                     yield return new WaitUntil(() => setScoreRound.IsCompleted);
-                    yield return StartCoroutine(UpdateFirebase());
+                    //yield return StartCoroutine(UpdateFirebase());
                     yield return StartCoroutine(UpdateScore());
                     
                     if (newScoreRoundValue == 3)
@@ -464,7 +463,6 @@ public class GameController : MonoBehaviour
         {
             bool gambitOver = false;
             turnEndedEarly = false;
-            yield return new WaitForSeconds(0.5f);
             foreach (GameObject card in userHandObjects)
             {
                 card.GetComponent<Button>().enabled = true;
@@ -522,7 +520,7 @@ public class GameController : MonoBehaviour
                         username = fetchTask.Result.Value.ToString();
                         chatManager.AddScoreMessageToChat($"{5} points ", username, 5, true);
 
-                        yield return StartCoroutine(DisplayScore());
+                        StartCoroutine(DisplayScore());
                         if (updatedScore >= 52) //Player wins 
                         {
                             var setGameOverTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").SetValueAsync(true);
@@ -560,6 +558,7 @@ public class GameController : MonoBehaviour
         }
         if (!gameOver)
         {
+            yield return new WaitForSeconds(0.5f);
             yield return StartCoroutine(UpdateFirebase());
             var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
             yield return new WaitUntil(() => removeUserTurn.IsCompleted);
@@ -1026,7 +1025,7 @@ public class GameController : MonoBehaviour
             turnEndedEarly = true;
             turnTimer = 0;
             var setTimer = turnTimerRef.SetValueAsync(0f);
-            Invoke(nameof(InvokeEndPlayerTurn), 1f);
+            StartCoroutine(EndPlayerTurn());
         }
         else if (!turnEndedEarly && currentGameState == (int)Gamestate.gambit)
         {
@@ -1064,7 +1063,7 @@ public class GameController : MonoBehaviour
                 turnEndedEarly = true;
                 turnTimer = 0;
                 var setTimer = turnTimerRef.SetValueAsync(0f);
-                Invoke(nameof(InvokeEndPlayerTurn), 1);
+                StartCoroutine(EndPlayerTurn());
             }
             else
                 Debug.Log("No card selected to play");

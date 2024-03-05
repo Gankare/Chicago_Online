@@ -12,7 +12,7 @@ public class ChatManager : MonoBehaviour
     private string serverId;
     private int maxMessages = 5;
     public TMP_Text chatText;
-    private Color playerUsernameColor = new Color(0.67f, 1, 0.57f);
+    private Color playerUsernameColor = new (0.67f, 1, 0.57f);
     public enum ScoreHierarchy
     {
         onePair	= 1,
