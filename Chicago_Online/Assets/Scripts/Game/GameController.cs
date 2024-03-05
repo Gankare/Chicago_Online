@@ -63,6 +63,7 @@ public class GameController : MonoBehaviour
     private Regex numberRegex = new (@"(two|three|four|five|six|seven|eight|nine|ten|Jack|Queen|King|Ace)");
     private bool gameOver;
     private bool firstGambitCard;
+    private int cardsDrawn;
 
     private void Awake()
     {
@@ -150,7 +151,7 @@ public class GameController : MonoBehaviour
             yield return StartCoroutine(ClearGambitDisplayCards());
         if (gambitCardsToDisplayPlayerIds != null && currentGameState == (int)Gamestate.distributionOfCards)
             yield return StartCoroutine(ClearGambitDisplayIds());
-            yield return new WaitForSeconds(1);
+            yield return new WaitForSeconds(0.5f);
 
         StartCoroutine(StartNextRound());
     }
@@ -307,6 +308,7 @@ public class GameController : MonoBehaviour
             {
                 Debug.LogError("Can't get currentGameRound");
             }
+            yield return new WaitForSeconds(0.5f * cardsDrawn);
         }
         else if (currentGameState == (int)Gamestate.gambit)
         {
@@ -324,6 +326,7 @@ public class GameController : MonoBehaviour
             {
                 Debug.LogError("Can't get currentGambitRound");
             }
+            yield return new WaitForSeconds(0.5f);
         }
         endTurnButton.SetActive(true);
         StartCoroutine(PlayerTurnTimer());
@@ -343,7 +346,8 @@ public class GameController : MonoBehaviour
                 int currentTurnTimer = Mathf.RoundToInt(turnTimer); 
                 if (currentTurnTimer != previousTurnTimer) 
                 {
-                    turnTimerRef.SetValueAsync(currentTurnTimer); 
+                    var setTimer = turnTimerRef.SetValueAsync(currentTurnTimer);
+                    yield return new WaitUntil(() => setTimer.IsCompleted);
                     previousTurnTimer = currentTurnTimer; 
                 }
                 yield return null;
@@ -363,7 +367,8 @@ public class GameController : MonoBehaviour
                 int currentTurnTimer = Mathf.RoundToInt(turnTimer); 
                 if (currentTurnTimer != previousTurnTimer) 
                 {
-                    turnTimerRef.SetValueAsync(currentTurnTimer); 
+                    var setTimer = turnTimerRef.SetValueAsync(currentTurnTimer);
+                    yield return new WaitUntil(() => setTimer.IsCompleted);
                     previousTurnTimer = currentTurnTimer; 
                 }
                 yield return null;
@@ -417,11 +422,11 @@ public class GameController : MonoBehaviour
         string currentPlayerId = playerIds[playerIndex];
         if (currentGameState == (int)Gamestate.distributionOfCards) 
         {
-            endTurnButton.SetActive(false);
-            DealCards(deck);
+            yield return StartCoroutine(DealCards(deck));
             yield return StartCoroutine(DisplayCardsDrawn());
+            yield return new WaitForSeconds(0.5f * cardsDrawn);
             turnEndedEarly = false;
-            StartCoroutine(CountAndSetValueOfHand(hand));
+            yield return StartCoroutine(CountAndSetValueOfHand(hand));
 
             DatabaseReference gameDataRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
             var getGameRoundTask = gameDataRef.Child("currentGameRound").GetValueAsync();
@@ -459,8 +464,7 @@ public class GameController : MonoBehaviour
         {
             bool gambitOver = false;
             turnEndedEarly = false;
-            endTurnButton.SetActive(false);
-
+            yield return new WaitForSeconds(0.5f);
             foreach (GameObject card in userHandObjects)
             {
                 card.GetComponent<Button>().enabled = true;
@@ -518,7 +522,7 @@ public class GameController : MonoBehaviour
                         username = fetchTask.Result.Value.ToString();
                         chatManager.AddScoreMessageToChat($"{5} points ", username, 5, true);
 
-                        StartCoroutine(DisplayScore());
+                        yield return StartCoroutine(DisplayScore());
                         if (updatedScore >= 52) //Player wins 
                         {
                             var setGameOverTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").SetValueAsync(true);
@@ -527,6 +531,7 @@ public class GameController : MonoBehaviour
                         }
                         //deleting all cards in the scene and clearing all lists before updating to firebase
                         yield return StartCoroutine(UpdateDeckAsync());
+                        yield return new WaitForSeconds(0.5f);
                         var setGambitFalse = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambit").SetValueAsync(false);
                         var setGambitSuit = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync("");
                         yield return new WaitUntil(() => setGambitFalse.IsCompleted && setGambitSuit.IsCompleted);
@@ -544,9 +549,9 @@ public class GameController : MonoBehaviour
                     if (!gameOver)
                     {
                         if(gambitOver) 
-                            yield return new WaitForSeconds(3f);
+                            yield return new WaitForSeconds(2f);
                         else
-                            yield return new WaitForSeconds(1f);
+                            yield return new WaitForSeconds(0.5f);
                         PassTurnToGambitWinner(winnerId);
                     }
                     yield break;   
@@ -614,7 +619,7 @@ public class GameController : MonoBehaviour
         List<CardScriptableObject> shuffledDeck = ShuffleDeck(deckToShuffle);
         deck = shuffledDeck;
 
-        DealCards(deck);
+        StartCoroutine(DealCards(deck));
         StartCoroutine(DisplayCardsDrawn());
         yield return null;
     }
@@ -635,9 +640,10 @@ public class GameController : MonoBehaviour
         return shuffledDeck;
     }
 
-    private void DealCards(List<CardScriptableObject> shuffledDeck)
+    IEnumerator DealCards(List<CardScriptableObject> shuffledDeck)
     {
         int cardsNeeded = 5 - hand.Count;
+        cardsDrawn = cardsNeeded;
         if (cardsNeeded > 0)
         {
             for (int i = 0; i < cardsNeeded; i++)
@@ -646,7 +652,7 @@ public class GameController : MonoBehaviour
                 {
                     Debug.LogWarning("Deck is empty.");
                     StartCoroutine(DeckEmptyReShuffle());
-                    return;
+                    yield break;
                 }
                 CardScriptableObject drawnCard = shuffledDeck[0];
 
@@ -657,6 +663,7 @@ public class GameController : MonoBehaviour
                 shuffledDeck.RemoveAt(0);
             }
         }
+        yield return null;
     }
     IEnumerator DeckEmptyReShuffle()
     {
@@ -993,6 +1000,7 @@ public class GameController : MonoBehaviour
     }
     public void ThrowCards()
     {
+        endTurnButton.SetActive(false);
         if (!turnEndedEarly && currentGameState == (int)Gamestate.distributionOfCards)
         {
             chatManager.AddDiscardMessageToChat($"Threw {selectedCardObjects.Count} Cards", DataSaver.instance.dts.userName);
@@ -1017,8 +1025,8 @@ public class GameController : MonoBehaviour
             selectedCardObjects.Clear();
             turnEndedEarly = true;
             turnTimer = 0;
-            turnTimerRef.SetValueAsync(0f); 
-            Invoke(nameof(InvokeEndPlayerTurn), 0.5f);
+            var setTimer = turnTimerRef.SetValueAsync(0f);
+            Invoke(nameof(InvokeEndPlayerTurn), 1f);
         }
         else if (!turnEndedEarly && currentGameState == (int)Gamestate.gambit)
         {
@@ -1055,8 +1063,8 @@ public class GameController : MonoBehaviour
                 selectedCardObjects.Clear();
                 turnEndedEarly = true;
                 turnTimer = 0;
-                turnTimerRef.SetValueAsync(0f);
-                Invoke(nameof(InvokeEndPlayerTurn), 0.5f);
+                var setTimer = turnTimerRef.SetValueAsync(0f);
+                Invoke(nameof(InvokeEndPlayerTurn), 1);
             }
             else
                 Debug.Log("No card selected to play");
