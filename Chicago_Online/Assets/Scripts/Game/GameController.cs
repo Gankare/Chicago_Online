@@ -517,7 +517,7 @@ public class GameController : MonoBehaviour
                         username = fetchTask.Result.Value.ToString();
                         chatManager.AddScoreMessageToChat($"{5} points ", username, 5, true);
 
-                        StartCoroutine(DisplayScore());
+                        yield return StartCoroutine(DisplayScore());
                         if (updatedScore >= 52) //Player wins 
                         {
                             var setGameOverTrue = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gameOver").SetValueAsync(true);
@@ -555,7 +555,7 @@ public class GameController : MonoBehaviour
         }
         if (!gameOver)
         {
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSeconds(2f);
             yield return StartCoroutine(UpdateFirebase());
             var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
             yield return new WaitUntil(() => removeUserTurn.IsCompleted);
