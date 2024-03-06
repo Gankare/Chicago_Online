@@ -549,13 +549,14 @@ public class GameController : MonoBehaviour
                             yield return new WaitForSeconds(0.5f);
                         PassTurnToGambitWinner(winnerId);
                     }
-                    yield break;   
+                    else
+                        yield break;   
                 }
             }
         }
         if (!gameOver)
         {
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(1f);
             yield return StartCoroutine(UpdateFirebase());
             var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
             yield return new WaitUntil(() => removeUserTurn.IsCompleted);
