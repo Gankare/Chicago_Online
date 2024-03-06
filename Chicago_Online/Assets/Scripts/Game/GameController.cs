@@ -151,7 +151,7 @@ public class GameController : MonoBehaviour
             yield return StartCoroutine(ClearGambitDisplayCards());
         if (gambitCardsToDisplayPlayerIds != null && currentGameState == (int)Gamestate.distributionOfCards)
             yield return StartCoroutine(ClearGambitDisplayIds());
-            yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds(0.5f);
         StartCoroutine(StartNextRound());
     }
     private void CheckGameOverStatus(object sender, ValueChangedEventArgs args)
@@ -325,14 +325,13 @@ public class GameController : MonoBehaviour
             {
                 Debug.LogError("Can't get currentGambitRound");
             }
-            yield return new WaitForSeconds(0.5f);
         }
-        endTurnButton.SetActive(true);
         StartCoroutine(PlayerTurnTimer());
     }
 
     private IEnumerator PlayerTurnTimer()
     {
+        endTurnButton.SetActive(true);
         turnTimer = turnDuration;
         float startTime = Time.time;
         int previousTurnTimer = Mathf.RoundToInt(turnTimer);
@@ -354,7 +353,7 @@ public class GameController : MonoBehaviour
 
             if (!turnEndedEarly)
             {
-                ThrowCards();
+                StartCoroutine(ThrowCards());
                 yield break;
             }
         }
@@ -375,7 +374,7 @@ public class GameController : MonoBehaviour
 
             if (!turnEndedEarly && selectedCardObjects.Count > 0)
             {
-                ThrowCards();
+                StartCoroutine(ThrowCards());
                 yield break;
             }
             else if (!turnEndedEarly && selectedCardObjects.Count == 0)
@@ -396,20 +395,20 @@ public class GameController : MonoBehaviour
                     if (amountOfSuitInHand > 0) // If suit and have same color in hand, autoselect first card of that color
                     {
                         cardsOfSuitInHand[0].GetComponent<CardButtonClick>().SelectCard();
-                        ThrowCards();
+                        StartCoroutine(ThrowCards());
                         yield break;
                     }
                     else if (amountOfSuitInHand == 0) // If suit and no suit card in hand, autoselect the first card in hand
                     {
                         userHandObjects[0].GetComponent<CardButtonClick>().SelectCard();
-                        ThrowCards();
+                        StartCoroutine(ThrowCards());
                         yield break;
                     }
                 }
                 else // If no suit/color, autoselect the first card in hand
                 {
                     userHandObjects[0].GetComponent<CardButtonClick>().SelectCard();
-                    ThrowCards();
+                    StartCoroutine(ThrowCards());
                     yield break;
                 }
             }
@@ -421,10 +420,9 @@ public class GameController : MonoBehaviour
         string currentPlayerId = playerIds[playerIndex];
         if (currentGameState == (int)Gamestate.distributionOfCards) 
         {
+            turnEndedEarly = false;
             yield return StartCoroutine(DealCards(deck));
             yield return StartCoroutine(DisplayCardsDrawn());
-            yield return new WaitForSeconds(0.5f * cardsDrawn);
-            turnEndedEarly = false;
             yield return StartCoroutine(CountAndSetValueOfHand(hand));
 
             DatabaseReference gameDataRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
@@ -446,7 +444,6 @@ public class GameController : MonoBehaviour
 
                     var setScoreRound = gameDataRef.Child("scoreGameRound").SetValueAsync(newScoreRoundValue);
                     yield return new WaitUntil(() => setScoreRound.IsCompleted);
-                    //yield return StartCoroutine(UpdateFirebase());
                     yield return StartCoroutine(UpdateScore());
                     
                     if (newScoreRoundValue == 3)
@@ -997,11 +994,15 @@ public class GameController : MonoBehaviour
             }
         }
     }
-    public void ThrowCards()
+    public void ThrowCardButtonClick()
     {
-        endTurnButton.SetActive(false);
+        StartCoroutine(ThrowCards());
+    }
+    IEnumerator ThrowCards()
+    {
         if (!turnEndedEarly && currentGameState == (int)Gamestate.distributionOfCards)
         {
+            endTurnButton.SetActive(false);
             chatManager.AddDiscardMessageToChat($"Threw {selectedCardObjects.Count} Cards", DataSaver.instance.dts.userName);
 
             foreach (GameObject selectedCardObject in selectedCardObjects)
@@ -1024,11 +1025,13 @@ public class GameController : MonoBehaviour
             selectedCardObjects.Clear();
             turnEndedEarly = true;
             turnTimer = 0;
-            var setTimer = turnTimerRef.SetValueAsync(0f);
+            var setTimerZero = turnTimerRef.SetValueAsync(0f);
+            yield return new WaitUntil(() => setTimerZero.IsCompleted);
             StartCoroutine(EndPlayerTurn());
         }
         else if (!turnEndedEarly && currentGameState == (int)Gamestate.gambit)
         {
+            endTurnButton.SetActive(false);
             if (selectedCardObjects.Count > 0)
             {
                 foreach (GameObject selectedCardObject in selectedCardObjects)
@@ -1040,11 +1043,13 @@ public class GameController : MonoBehaviour
                     {
                         hand.Remove(cardToRemove);
                         userHandObjects.Remove(selectedCardObject);
+
                         if (firstGambitCard)
                         {
                             DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync(cardToRemove.cardSuit.ToString());
                             gambitSuit = cardToRemove.cardSuit.ToString();
                         }
+
                         if (gambitCard != null)
                         {
                             discardPile.Add(gambitCard);
@@ -1062,11 +1067,14 @@ public class GameController : MonoBehaviour
                 selectedCardObjects.Clear();
                 turnEndedEarly = true;
                 turnTimer = 0;
-                var setTimer = turnTimerRef.SetValueAsync(0f);
+                var setTimerZero = turnTimerRef.SetValueAsync(0f);
+                yield return new WaitUntil(() => setTimerZero.IsCompleted);
                 StartCoroutine(EndPlayerTurn());
             }
             else
+            {
                 Debug.Log("No card selected to play");
+            }
         }
     }
     void InvokeEndPlayerTurn()
