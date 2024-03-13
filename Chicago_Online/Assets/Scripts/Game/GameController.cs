@@ -148,7 +148,7 @@ public class GameController : MonoBehaviour
     {
         yield return ClearGambitDisplayCards();
         yield return ClearGambitDisplayIds();
-        yield return new WaitForSeconds(3);
+        yield return new WaitForSeconds(1);
         if (drawingGambitCards)
         {
             StartCoroutine(StartNextRoundAfterAWhile());
@@ -333,10 +333,11 @@ public class GameController : MonoBehaviour
 
     private IEnumerator PlayerTurnTimer()
     {
+        Debug.Log("timer started");
+        endTurnButton.SetActive(true);
         turnTimer = turnDuration;
         float startTime = Time.time;
         int previousTurnTimer = Mathf.RoundToInt(turnTimer);
-        endTurnButton.SetActive(true);
 
         if (currentGameState == (int)Gamestate.distributionOfCards)
         {
@@ -867,7 +868,7 @@ public class GameController : MonoBehaviour
         if (getGambitBool.Exception != null || getServerDeckTask.Exception != null || getServerDiscardPileTask.Exception != null || getUserHandTask.Exception != null)
         {
             Debug.LogError("Error retrieving data from Firebase.");
-            yield break;
+            //yield break;
         }
 
         DataSnapshot userHandSnapshot = getUserHandTask.Result;
@@ -959,6 +960,7 @@ public class GameController : MonoBehaviour
             firstGambitCard = false;
             gambitSuit = getGambitSuit.Result.Value.ToString();
         }
+        yield return null;
     }
 
     private IEnumerator HandleNonGambit()
