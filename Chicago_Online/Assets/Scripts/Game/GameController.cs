@@ -133,7 +133,7 @@ public class GameController : MonoBehaviour
         }
     }
 
-    private void PlayerTurnValueChanged(object sender, ValueChangedEventArgs args)
+    async void PlayerTurnValueChanged(object sender, ValueChangedEventArgs args)
     {
         if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
         {
@@ -155,7 +155,7 @@ public class GameController : MonoBehaviour
             yield break;
         }
         else
-            StartCoroutine(StartNextRound());
+           yield return StartCoroutine(StartNextRound());
     }
     private void CheckGameOverStatus(object sender, ValueChangedEventArgs args)
     {
@@ -173,7 +173,7 @@ public class GameController : MonoBehaviour
         turnTimerRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("turnTimer");
         turnTimerRef.ValueChanged += TurnTimerValueChanged;
     }
-    private void TurnTimerValueChanged(object sender, ValueChangedEventArgs args)
+    async void TurnTimerValueChanged(object sender, ValueChangedEventArgs args)
     {
         if (args != null && args.Snapshot != null && args.Snapshot.Value != null)
         {
@@ -328,7 +328,8 @@ public class GameController : MonoBehaviour
                 Debug.LogError("Can't get currentGambitRound");
             }
         }
-        StartCoroutine(PlayerTurnTimer());
+        yield return StartCoroutine(PlayerTurnTimer());
+        yield break;
     }
 
     private IEnumerator PlayerTurnTimer()
@@ -345,7 +346,7 @@ public class GameController : MonoBehaviour
             {
                 turnTimer = turnDuration - (Time.time - startTime);
                 int currentTurnTimer = Mathf.RoundToInt(turnTimer); 
-                if (currentTurnTimer != previousTurnTimer) 
+                if (currentTurnTimer != previousTurnTimer && !turnEndedEarly) 
                 {
                     var setTimer = turnTimerRef.SetValueAsync(currentTurnTimer);
                     yield return new WaitUntil(() => setTimer.IsCompleted);
@@ -356,10 +357,8 @@ public class GameController : MonoBehaviour
 
             if (!turnEndedEarly)
             {
-                StartCoroutine(ThrowCards());
-                yield break;
+                yield return StartCoroutine(ThrowCards());
             }
-            else
                 yield break;
         }
         else if (currentGameState == (int)Gamestate.gambit)
@@ -368,7 +367,7 @@ public class GameController : MonoBehaviour
             {
                 turnTimer = turnDuration - (Time.time - startTime);
                 int currentTurnTimer = Mathf.RoundToInt(turnTimer); 
-                if (currentTurnTimer != previousTurnTimer) 
+                if (currentTurnTimer != previousTurnTimer && !turnEndedEarly) 
                 {
                     var setTimer = turnTimerRef.SetValueAsync(currentTurnTimer);
                     yield return new WaitUntil(() => setTimer.IsCompleted);
@@ -379,7 +378,7 @@ public class GameController : MonoBehaviour
 
             if (!turnEndedEarly && selectedCardObjects.Count > 0)
             {
-                StartCoroutine(ThrowCards());
+                yield return StartCoroutine(ThrowCards());
                 yield break;
             }
             else if (!turnEndedEarly && selectedCardObjects.Count == 0)
@@ -400,20 +399,20 @@ public class GameController : MonoBehaviour
                     if (amountOfSuitInHand > 0) // If suit and have same color in hand, autoselect first card of that color
                     {
                         cardsOfSuitInHand[0].GetComponent<CardButtonClick>().SelectCard();
-                        StartCoroutine(ThrowCards());
+                        yield return StartCoroutine(ThrowCards());
                         yield break;
                     }
                     else if (amountOfSuitInHand == 0) // If suit and no suit card in hand, autoselect the first card in hand
                     {
                         userHandObjects[0].GetComponent<CardButtonClick>().SelectCard();
-                        StartCoroutine(ThrowCards());
+                        yield return StartCoroutine(ThrowCards());
                         yield break;
                     }
                 }
                 else // If no suit/color, autoselect the first card in hand
                 {
                     userHandObjects[0].GetComponent<CardButtonClick>().SelectCard();
-                    StartCoroutine(ThrowCards());
+                    yield return StartCoroutine(ThrowCards());
                     yield break;
                 }
             }
@@ -427,7 +426,6 @@ public class GameController : MonoBehaviour
         string currentPlayerId = playerIds[playerIndex];
         if (currentGameState == (int)Gamestate.distributionOfCards) 
         {
-            turnEndedEarly = false;
             yield return DealCards(deck);
             yield return DisplayCardsDrawn();
             yield return CountAndSetValueOfHand(hand);
@@ -465,7 +463,6 @@ public class GameController : MonoBehaviour
         }
         else if (currentGameState == (int)Gamestate.gambit)
         {
-            turnEndedEarly = false;
             yield return DisableGambitCards();
             DatabaseReference gameDataRef = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData");
             var getGambitRoundTask = gameDataRef.Child("currentGambitRound").GetValueAsync();
@@ -481,7 +478,7 @@ public class GameController : MonoBehaviour
                     var setGambitRoundTask = gameDataRef.Child("currentGambitRound").SetValueAsync(0);
                     yield return new WaitUntil(() => setGambitRoundTask.IsCompleted);
                     yield return FindGambitWinner();
-                    if (hand.Count == 0 || hand == null)
+                    if (userHandObjects.Count == 0 || userHandObjects == null)
                     {
                         var getPlayerScoreTask = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(gambitWinnerId).Child("userGameData").Child("score").GetValueAsync();
                         yield return new WaitUntil(() => getPlayerScoreTask.IsCompleted);
@@ -518,14 +515,15 @@ public class GameController : MonoBehaviour
                         var setGambitSuit = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("gameData").Child("gambitSuit").SetValueAsync("");
                         yield return new WaitUntil(() => setGambitFalse.IsCompleted && setGambitSuit.IsCompleted);
                     }
-                    {
                     if (!gameOver)
                     {
                         yield return UpdateFirebase();
                         var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
                         yield return new WaitUntil(() => removeUserTurn.IsCompleted);
                         yield return SetGambitCardNull();
-                        StartCoroutine(PassTurnToGambitWinner(gambitWinnerId));
+                        yield return new WaitForSeconds(0.5f);
+                        yield return StartCoroutine(PassTurnToGambitWinner(gambitWinnerId));
+                        yield break;
                     }
                     yield break;   
                 }
@@ -536,7 +534,9 @@ public class GameController : MonoBehaviour
             yield return UpdateFirebase();
             var removeUserTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(currentPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(false);
             yield return new WaitUntil(() => removeUserTurn.IsCompleted);
-            StartCoroutine(PassTurnToNextPlayer()); 
+            yield return new WaitForSeconds(0.5f);
+            yield return StartCoroutine(PassTurnToNextPlayer());
+            yield break;
         }
         else
             yield break;
@@ -556,7 +556,7 @@ public class GameController : MonoBehaviour
                 }
             }
         }
-        yield return null;
+        yield break;
     }
     IEnumerator DisableGambitCards()
     {
@@ -565,7 +565,7 @@ public class GameController : MonoBehaviour
             card.GetComponent<Button>().enabled = true;
             card.GetComponent<Image>().color = Color.white;
         }
-        yield return null;
+        yield break;
     }
     IEnumerator SetGambitCardNull()
     {
@@ -575,17 +575,19 @@ public class GameController : MonoBehaviour
             var setGambitCards = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(playerid).Child("userGameData").Child("gambitCard").SetValueAsync("");
             yield return new WaitUntil(() => setGambitCards.IsCompleted);
         }
-        yield return null;
+        yield break;
     }
     IEnumerator ResetDeckAfterGambit()
     {
         discardPile.Clear();
         deck.Clear();
+        hand.Clear();
+        userHandObjects.Clear();
         foreach (var card in allCards)
         {
             deck.Add(card);
         }
-        yield return null; 
+        yield break;
     }
     IEnumerator IsMyTurnCoroutine(System.Action<bool> callback)
     {
@@ -611,6 +613,11 @@ public class GameController : MonoBehaviour
 
     IEnumerator PassTurnToNextPlayer()
     {
+        Debug.Log("passNextPlayer");
+        turnTimer = 0;
+        var setTimerZero = turnTimerRef.SetValueAsync(0f);
+        yield return new WaitUntil(() => setTimerZero.IsCompleted);
+        yield return new WaitForSeconds(0.5f);
         int currentIndex = playerIds.IndexOf(DataSaver.instance.userId);
         int nextIndex = (currentIndex + 1) % playerIds.Count;
         string nextPlayerId = playerIds[nextIndex];
@@ -619,6 +626,11 @@ public class GameController : MonoBehaviour
     }
     IEnumerator PassTurnToGambitWinner(string winnerId)
     {
+        Debug.Log("gambitpass");
+        turnTimer = 0;
+        var setTimerZero = turnTimerRef.SetValueAsync(0f);
+        yield return new WaitUntil(() => setTimerZero.IsCompleted);
+        yield return new WaitForSeconds(0.5f);
         int nextIndex = playerIds.IndexOf(winnerId);
         string nextPlayerId = playerIds[nextIndex];
         var setNextPlayerTurn = DataSaver.instance.dbRef.Child("servers").Child(serverId).Child("players").Child(nextPlayerId).Child("userGameData").Child("isTurn").SetValueAsync(true);
@@ -673,7 +685,7 @@ public class GameController : MonoBehaviour
                 shuffledDeck.RemoveAt(0);
             }
         }
-        yield return null;
+        yield break;
     }
     IEnumerator DeckEmptyReShuffle()
     {
@@ -710,7 +722,7 @@ public class GameController : MonoBehaviour
                 yield return new WaitForSeconds(0.5f);
             }
         }
-        yield return null;
+        yield break;
     }
 
     IEnumerator DisplayGambitCards()
@@ -768,7 +780,7 @@ public class GameController : MonoBehaviour
             }
         }
         drawingGambitCards = false;
-        yield return null;
+        yield break;
     }
 
     #endregion
@@ -776,6 +788,7 @@ public class GameController : MonoBehaviour
     #region UpdateFireBaseAndLocalCards
     IEnumerator UpdateFirebase()
     {
+        turnEndedEarly = false;
         // Clear firebase lists
         yield return ClearFireBaseLists();
 
@@ -799,7 +812,7 @@ public class GameController : MonoBehaviour
         firebaseHand.Clear();
         firebaseDiscardPile.Clear();
         firebaseDeck.Clear();
-        yield return null;
+        yield break;
     }
     IEnumerator UpdateHandList()
     {
@@ -812,7 +825,7 @@ public class GameController : MonoBehaviour
             foreach (CardScriptableObject card in hand)
                 firebaseHand.Add(card.cardId);
         }
-        yield return null;
+        yield break;
     }
 
     IEnumerator UpdateDiscardPileList()
@@ -826,7 +839,7 @@ public class GameController : MonoBehaviour
             foreach (CardScriptableObject card in discardPile)
                 firebaseDiscardPile.Add(card.cardId);
         }
-        yield return null;
+        yield break;
     }
 
     IEnumerator UpdateDeckList()
@@ -840,7 +853,7 @@ public class GameController : MonoBehaviour
             foreach (CardScriptableObject card in deck)
                 firebaseDeck.Add(card.cardId);
         }
-        yield return null;  
+        yield break;
     }
 
     IEnumerator UpdateGambitCard()
@@ -849,7 +862,7 @@ public class GameController : MonoBehaviour
             firebaseGambitCard = gambitCard.cardId;
         else 
             firebaseGambitCard = "";
-        yield return null;
+        yield break;
     }
 
     IEnumerator UpdateToServer()
@@ -896,6 +909,7 @@ public class GameController : MonoBehaviour
         {
             yield return HandleNonGambit();
         }
+        Debug.Log("Loaded the datamaneten");
     }
     IEnumerator AddHanObjectsFromHand()
     {
@@ -906,7 +920,7 @@ public class GameController : MonoBehaviour
                 userHandObjects.Add(handSlot.GetChild(i).gameObject);
             }
         }
-        yield return null;
+        yield break;
     }
     private IEnumerator ClearLists()
     {
@@ -914,7 +928,7 @@ public class GameController : MonoBehaviour
         hand.Clear();
         discardPile.Clear();
         userHandObjects.Clear();
-        yield return null;
+        yield break;
     }
     private IEnumerator HandleGambit()
     {
@@ -987,7 +1001,7 @@ public class GameController : MonoBehaviour
             }
         }
         currentGameState = (int)Gamestate.distributionOfCards;
-        yield return null;
+        yield break;
     }
 
     IEnumerator PopulateListFromSnapshot(List<CardScriptableObject> list, DataSnapshot snapshot)
@@ -1004,7 +1018,7 @@ public class GameController : MonoBehaviour
                 }
             }
         }
-        yield return null; 
+        yield break;
     }
     #endregion
 
@@ -1049,39 +1063,37 @@ public class GameController : MonoBehaviour
     }
     IEnumerator ThrowCards()
     {
-        if (!turnEndedEarly && currentGameState == (int)Gamestate.distributionOfCards)
+        if (!turnEndedEarly)
         {
-            endTurnButton.SetActive(false);
-            turnEndedEarly = true;
-            chatManager.AddDiscardMessageToChat($"Threw {selectedCardObjects.Count} Cards", DataSaver.instance.dts.userName);
+            if (currentGameState == (int)Gamestate.distributionOfCards)
+            {
+                turnEndedEarly = true;
+                endTurnButton.SetActive(false);
+                yield return ThrowCardsFromHand();
+            }
+            else if (currentGameState == (int)Gamestate.gambit && selectedCardObjects.Count > 0)
+            {
+                turnEndedEarly = true;
+                endTurnButton.SetActive(false);
+                if (selectedCardObjects.Count > 0)
+                    yield return PutOutGambitCard();
+                else
+                    Debug.Log("No card selected to play");
+            }
+            else if (currentGameState == (int)Gamestate.gambit && selectedCardObjects.Count == 0)
+                yield break;
 
-            yield return ThrowCardsFromHand();
-            selectedCardObjects.Clear();
-            turnTimer = 0;
-            turnTimerRef.SetValueAsync(0f);
-            //yield return new WaitUntil(() => setTimerZero.IsCompleted);
-            StartCoroutine(EndPlayerTurn());
+            yield return SendMessageThrowCards();
+            yield return StartCoroutine(EndPlayerTurn());
             yield break;
         }
-        else if (!turnEndedEarly && currentGameState == (int)Gamestate.gambit && selectedCardObjects.Count > 0)
-        {
-            endTurnButton.SetActive(false);
-            turnEndedEarly = true;
-            if (selectedCardObjects.Count > 0)
-            {
-                yield return PutOutGambitCard();
-                selectedCardObjects.Clear();
-                turnTimer = 0;
-                turnTimerRef.SetValueAsync(0f);
-                //yield return new WaitUntil(() => setTimerZero.IsCompleted);
-                StartCoroutine(EndPlayerTurn());
-                yield break;
-            }
-            else
-            {
-                Debug.Log("No card selected to play");
-            }
-        }
+    }
+    IEnumerator SendMessageThrowCards()
+    {
+        selectedCardObjects.Clear();
+        if (currentGameState == (int)Gamestate.distributionOfCards)
+            chatManager.AddDiscardMessageToChat($"Threw {selectedCardObjects.Count} Cards", DataSaver.instance.dts.userName);
+        yield break;
     }
     IEnumerator ThrowCardsFromHand()
     {
@@ -1093,16 +1105,20 @@ public class GameController : MonoBehaviour
             if (cardToRemove != null)
             {
                 userHandObjects.Remove(selectedCardObject);
-                hand.Remove(cardToRemove);
                 discardPile.Add(cardToRemove);
                 Destroy(selectedCardObject);
+                hand.Remove(cardToRemove);
             }
             else
             {
                 Debug.LogError("Failed to find card with ID: " + cardInfo.cardId);
             }
         }
-        yield return null;
+        foreach (GameObject selectedCardObject in selectedCardObjects)
+        {
+            Destroy(selectedCardObject);
+        }
+        yield break;
     }
     IEnumerator PutOutGambitCard()
     {
@@ -1114,7 +1130,7 @@ public class GameController : MonoBehaviour
             if (cardToRemove != null)
             {
                 userHandObjects.Remove(selectedCardObject);
-                hand.Remove(cardToRemove);
+                //hand.Remove(cardToRemove);
 
                 if (firstGambitCard)
                 {
@@ -1146,13 +1162,13 @@ public class GameController : MonoBehaviour
     {
         if (gambitCardsToDisplay != null && currentGameState == (int)Gamestate.distributionOfCards)
             gambitCardsToDisplay?.Clear();
-        yield return null;
+        yield break;
     }
     IEnumerator ClearGambitDisplayIds()
     {
         if (gambitCardsToDisplayPlayerIds != null && currentGameState == (int)Gamestate.distributionOfCards)
             gambitCardsToDisplayPlayerIds?.Clear();
-        yield return null;
+        yield break;
     }
     private CardScriptableObject GetCardFromId(string cardId)
     {
@@ -1185,9 +1201,7 @@ public class GameController : MonoBehaviour
                     card.GetComponent<Image>().color = Color.white;
                 }
             }
-            yield return null;
         }
-
         else if (currentGameState == (int)Gamestate.gambit)
         {
             if (!string.IsNullOrEmpty(gambitSuit))
@@ -1228,6 +1242,7 @@ public class GameController : MonoBehaviour
                 }
             }
         }
+        yield break;
     }
     #endregion
 
